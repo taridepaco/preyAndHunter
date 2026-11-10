@@ -1,6 +1,6 @@
 // Draws the world with zoom and pan (ported from GameOfLifer's DRAW shader). Zoomed out, each
 // pixel averages up to 4×4 cells so the view shows densities instead of aliasing; zoomed in,
-// animals become discs whose brightness follows their energy.
+// animals become square sprites whose brightness follows their energy.
 
 struct View {
   canvas: vec2<f32>,
@@ -13,6 +13,7 @@ struct View {
   grass_lo: vec4<f32>,
   grass_hi: vec4<f32>,
   outside: vec4<f32>,
+  ring: vec4<f32>, // brush outline
   colors: array<vec4<f32>, MAX_SPECIES>, // rgb + energy scale (0 = energy is not shown)
 }
 
@@ -60,9 +61,11 @@ fn fs(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let w = cells[i];
     col = ground(i);
     if ((w & 15u) != 0u) {
-      let r = length(fract(cell) - vec2<f32>(0.5));
-      let aa = 1.0 / V.zoom;
-      col = mix(col, animal(w), smoothstep(0.42 + aa, 0.42 - aa, r));
+      // a square sprite inside its cell, like a pixel of a 16-bit screen
+      let q = abs(fract(cell) - vec2<f32>(0.5));
+      let r = max(q.x, q.y);
+      let aa = 0.5 / V.zoom;
+      col = mix(col, animal(w), smoothstep(0.38 + aa, 0.38 - aa, r));
     }
     if (V.zoom >= 14.0) {
       let f = fract(cell) * V.zoom;
@@ -89,7 +92,7 @@ fn fs(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   if (V.brush.w > 0.5) {
     let d = length(cell - V.brush.xy) * V.zoom;
     let rr = max(V.brush.z * V.zoom, 3.0);
-    if (abs(d - rr) < 1.0) { col = mix(col, vec3<f32>(1.0), 0.7); }
+    if (abs(d - rr) < 1.0) { col = mix(col, V.ring.rgb, 0.85); }
   }
   return vec4<f32>(col, 1.0);
 }

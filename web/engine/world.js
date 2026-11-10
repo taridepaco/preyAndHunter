@@ -19,12 +19,14 @@ const rgb = (hex) => {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
 };
 
-const COLORS = {
-  soil: rgb('#34291e'),
-  bare: rgb('#11161c'), // ground of worlds without grass
-  grassLo: rgb('#435e25'),
-  grassHi: rgb('#4f8a2b'),
-  outside: rgb('#05070a'),
+// Ground colours until the page sets its theme's (setColors). These are the night set.
+const DEFAULT_COLORS = {
+  soil: '#2a2119',
+  bare: '#12222b', // ground of worlds without grass
+  grassLo: '#2c4326',
+  grassHi: '#3b6b36',
+  outside: '#0a141a',
+  ring: '#f1ead0', // the brush outline
 };
 
 export { TOOL };
@@ -55,7 +57,9 @@ export class World {
     this.palette = new Float32Array(MAX_SPECIES * 4);
     this.species = [];
     this.tickData = new Uint32Array((MAX_TICKS_PER_STEP * TICK_STRIDE) / 4);
-    this.viewData = new Float32Array(60);
+    this.viewData = new Float32Array(32 + MAX_SPECIES * 4); // the View struct of render.wgsl
+    this.colors = {};
+    this.setColors(DEFAULT_COLORS);
     this.brushData = new Uint32Array(8);
     this.paintSalt = 1;
     this.onStats = null; // (live: Uint32Array, samples: [{t, stats}]) => void
@@ -210,6 +214,13 @@ export class World {
     }
   }
 
+  /** Ground, outside and brush colours as hex strings ({soil, bare, grassLo, grassHi, outside, ring}). */
+  setColors(colors) {
+    for (const [k, hex] of Object.entries({ ...DEFAULT_COLORS, ...colors })) {
+      if (/^#[0-9a-f]{6}$/i.test(hex)) this.colors[k] = rgb(hex);
+    }
+  }
+
   get grassOn() {
     return this.params[PARAM.GRASS_ON] !== 0;
   }
@@ -345,11 +356,13 @@ export class World {
     f[7] = this.grassOn ? 1 : 0;
     if (brush) f.set([brush.x, brush.y, brush.r, 1], 8);
     else f[11] = 0;
-    f.set([...(this.grassOn ? COLORS.soil : COLORS.bare), 1], 12);
-    f.set([...COLORS.grassLo, 1], 16);
-    f.set([...COLORS.grassHi, 1], 20);
-    f.set([...COLORS.outside, 1], 24);
-    f.set(this.palette, 28);
+    const c = this.colors;
+    f.set([...(this.grassOn ? c.soil : c.bare), 1], 12);
+    f.set([...c.grassLo, 1], 16);
+    f.set([...c.grassHi, 1], 20);
+    f.set([...c.outside, 1], 24);
+    f.set([...c.ring, 1], 28);
+    f.set(this.palette, 32);
     const d = this.device;
     d.queue.writeBuffer(this.viewBuf, 0, f);
     const enc = d.createCommandEncoder();

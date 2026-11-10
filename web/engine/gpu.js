@@ -3,10 +3,10 @@ import { wgslPrelude } from './rules.js';
 
 export async function initGPU() {
   if (!navigator.gpu) {
-    throw new Error('Este navegador no tiene WebGPU. Prueba con Chrome o Edge, Safari 26 o Firefox 141+ en Windows.');
+    throw Object.assign(new Error('Este navegador no tiene WebGPU. Prueba con Chrome o Edge, Safari 26 o Firefox 141+ en Windows.'), { code: 'webgpu' });
   }
   const adapter = await navigator.gpu.requestAdapter();
-  if (!adapter) throw new Error('WebGPU está, pero no encuentra una GPU compatible.');
+  if (!adapter) throw Object.assign(new Error('WebGPU está, pero no encuentra una GPU compatible.'), { code: 'adapter' });
   const device = await adapter.requestDevice({
     requiredLimits: {
       maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,

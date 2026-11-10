@@ -1,13 +1,30 @@
-/* Canvas charts of the observatory: stacked population panels and the phase portrait. */
+/*
+ * Canvas charts of the observatory: stacked population panels and the phase portrait.
+ * Colours come from the page's tokens (refreshChartColors reads them again when the theme
+ * changes); axes and text in --ink and --muted with the system's monospace font. Species lines
+ * get a --shade casing so light colours stay readable on the light background.
+ */
+import { num, t } from '../i18n.js';
 
-const INK = '#e6edf3';
-const MUTED = '#8b98a7';
-const FAINT = '#5b6776';
-const GRID = '#243040';
-const PREDICT = '#ff8f6b';
-const THEORY = '#7cc4ff';
+export const chartColors = {
+  ink: '#1f2a33',
+  muted: '#48595f',
+  shade: '#1f2a33',
+  accent: '#d9442e',
+  theory: '#2f7e96',
+  grass: '#74b34e',
+};
 
-const fmt = (v) => Math.round(v).toLocaleString('es-ES');
+/** Reads the colours from the CSS tokens (system.css and style.css). */
+export function refreshChartColors() {
+  const css = getComputedStyle(document.documentElement);
+  const tokens = { ink: '--ink', muted: '--muted', shade: '--shade', accent: '--accent', theory: '--c-theory', grass: '--sim-grass-hi' };
+  for (const [k, name] of Object.entries(tokens)) chartColors[k] = css.getPropertyValue(name).trim() || chartColors[k];
+}
+
+const C = chartColors;
+const FONT = '"Martian Mono", Consolas, "Courier New", monospace';
+const fmt = (v) => num(Math.round(v));
 
 function fitCanvas(canvas) {
   const dpr = window.devicePixelRatio || 1;
@@ -38,6 +55,18 @@ function polyline(g, pts, X, Y) {
   g.stroke();
 }
 
+/** A coloured line over a darker casing, like an outlined sprite. */
+function casedLine(g, pts, X, Y, color, width, d) {
+  g.lineJoin = 'round';
+  g.lineCap = 'round';
+  g.strokeStyle = C.shade;
+  g.lineWidth = width + 2 * d;
+  polyline(g, pts, X, Y);
+  g.strokeStyle = color;
+  g.lineWidth = width;
+  polyline(g, pts, X, Y);
+}
+
 /** Populations as stacked panels sharing the time axis, each with its own vertical range. */
 export class SeriesChart {
   constructor(canvas) {
@@ -52,47 +81,57 @@ export class SeriesChart {
     const g = this.g;
     g.clearRect(0, 0, w, h);
     if (!panels.length) return;
-    const bottom = 14 * d;
+    const pad = 6 * d;
+    const bottom = 16 * d;
     const ph = (h - bottom) / panels.length;
     const n = Math.max(2, panels[0].values.length);
-    const X = (i) => (i / (n - 1)) * (w - 2 * d) + d;
-    g.font = `${11 * d}px system-ui, sans-serif`;
-    g.lineJoin = 'round';
+    const X = (i) => pad + (i / (n - 1)) * (w - 2 * pad);
+    g.font = `500 ${10 * d}px ${FONT}`;
+    g.textBaseline = 'alphabetic';
     panels.forEach((p, k) => {
-      const top = k * ph + 4 * d;
-      const bot = (k + 1) * ph - 3 * d;
+      const top = k * ph + 6 * d;
+      const bot = (k + 1) * ph - 4 * d;
       const [lo, hi] = range(p.values, p.theory ?? []);
-      const Y = (v) => bot - ((v - lo) / (hi - lo)) * (bot - top - 12 * d);
-      g.strokeStyle = GRID;
-      g.lineWidth = d;
-      g.setLineDash([]);
-      g.beginPath();
-      g.moveTo(0, bot + 1.5 * d);
-      g.lineTo(w, bot + 1.5 * d);
-      g.stroke();
+      const Y = (v) => bot - ((v - lo) / (hi - lo)) * (bot - top - 14 * d);
+      if (k > 0) {
+        g.strokeStyle = C.muted;
+        g.lineWidth = d;
+        g.setLineDash([2 * d, 3 * d]);
+        g.beginPath();
+        g.moveTo(0, k * ph);
+        g.lineTo(w, k * ph);
+        g.stroke();
+        g.setLineDash([]);
+      }
       if (p.theory) {
-        g.strokeStyle = THEORY;
+        g.strokeStyle = C.theory;
         g.lineWidth = 1.5 * d;
         g.setLineDash([4 * d, 3 * d]);
         polyline(g, p.theory.map((v, i) => [i, v]), X, Y);
         g.setLineDash([]);
       }
-      g.strokeStyle = p.color;
-      g.lineWidth = 1.6 * d;
-      polyline(g, p.values.map((v, i) => [i, v]), X, Y);
+      casedLine(g, p.values.map((v, i) => [i, v]), X, Y, p.color, 2 * d, d);
       const last = p.values[p.values.length - 1];
-      g.fillStyle = MUTED;
+      g.fillStyle = C.muted;
       g.textAlign = 'left';
-      g.fillText(p.label, 2 * d, top + 9 * d);
-      g.fillStyle = INK;
-      g.fillText(last === undefined ? '—' : p.format ? p.format(last) : fmt(last), g.measureText(p.label).width + 8 * d, top + 9 * d);
-      g.fillStyle = FAINT;
+      g.fillText(p.label, pad, top + 9 * d);
+      g.fillStyle = C.ink;
+      g.font = `700 ${10 * d}px ${FONT}`;
+      g.fillText(last === undefined ? '—' : p.format ? p.format(last) : fmt(last), pad + g.measureText(p.label).width + 8 * d, top + 9 * d);
+      g.font = `500 ${10 * d}px ${FONT}`;
+      g.fillStyle = C.muted;
       g.textAlign = 'right';
-      g.fillText(`${p.format ? p.format(lo) : fmt(lo)} – ${p.format ? p.format(hi) : fmt(hi)}`, w - 2 * d, top + 9 * d);
+      g.fillText(`${p.format ? p.format(lo) : fmt(lo)} – ${p.format ? p.format(hi) : fmt(hi)}`, w - pad, top + 9 * d);
     });
-    g.fillStyle = FAINT;
+    g.strokeStyle = C.ink;
+    g.lineWidth = 2 * d;
+    g.beginPath();
+    g.moveTo(0, h - bottom);
+    g.lineTo(w, h - bottom);
+    g.stroke();
+    g.fillStyle = C.muted;
     g.textAlign = 'right';
-    g.fillText(`últimos ${fmt(ticks)} ticks`, w - 2 * d, h - 2 * d);
+    g.fillText(t('chart.last', { n: fmt(ticks) }), w - pad, h - 4 * d);
   }
 }
 
@@ -112,15 +151,15 @@ export class PhaseChart {
     const { width: w, height: h } = this.canvas;
     const g = this.g;
     g.clearRect(0, 0, w, h);
-    const L = 44 * d;
-    const B = 30 * d;
-    const T = 8 * d;
-    const R = 10 * d;
+    const L = 54 * d;
+    const B = 34 * d;
+    const T = 10 * d;
+    const R = 12 * d;
     if (o.x.length < 2) {
-      g.fillStyle = MUTED;
-      g.font = `${12 * d}px system-ui, sans-serif`;
+      g.fillStyle = C.muted;
+      g.font = `500 ${11 * d}px ${FONT}`;
       g.textAlign = 'center';
-      g.fillText('Esperando datos…', w / 2, h / 2);
+      g.fillText(t('chart.wait'), w / 2, h / 2);
       return;
     }
     const xs = [...o.x];
@@ -131,37 +170,51 @@ export class PhaseChart {
     const X = (v) => L + ((v - x0) / (x1 - x0)) * (w - L - R);
     const Y = (v) => h - B - ((v - y0) / (y1 - y0)) * (h - B - T);
 
-    g.lineWidth = d;
-    g.strokeStyle = GRID;
+    g.lineWidth = 2 * d;
+    g.strokeStyle = C.ink;
     g.setLineDash([]);
+    g.lineCap = 'square';
     g.beginPath();
     g.moveTo(L, T);
     g.lineTo(L, h - B);
     g.lineTo(w - R, h - B);
     g.stroke();
-    g.font = `${11 * d}px system-ui, sans-serif`;
-    g.fillStyle = FAINT;
+    g.font = `500 ${10 * d}px ${FONT}`;
+    g.fillStyle = C.muted;
     g.textAlign = 'left';
-    g.fillText(fmt(x0), L, h - B + 13 * d);
+    g.fillText(fmt(x0), L, h - B + 14 * d);
     g.textAlign = 'right';
-    g.fillText(fmt(x1), w - R, h - B + 13 * d);
-    g.fillText(fmt(y0), L - 5 * d, h - B);
-    g.fillText(fmt(y1), L - 5 * d, T + 9 * d);
+    g.fillText(fmt(x1), w - R, h - B + 14 * d);
+    g.fillText(fmt(y0), L - 6 * d, h - B);
+    g.fillText(fmt(y1), L - 6 * d, T + 9 * d);
+    g.font = `700 ${10 * d}px ${FONT}`;
     g.textAlign = 'center';
-    g.fillStyle = o.xColor;
+    g.fillStyle = C.ink;
     g.fillText(o.xLabel, (L + w - R) / 2, h - 6 * d);
     g.save();
-    g.translate(12 * d, (T + h - B) / 2);
+    g.translate(14 * d, (T + h - B) / 2);
     g.rotate(-Math.PI / 2);
-    g.fillStyle = o.yColor;
     g.fillText(o.yLabel, 0, 0);
     g.restore();
+    // the axis names carry the species colour as a small square, as in the panel
+    const tag = (x, y) => {
+      g.fillStyle = C.shade;
+      g.fillRect(x - 5 * d, y - 5 * d, 10 * d, 10 * d);
+    };
+    const xw = g.measureText(o.xLabel).width;
+    tag((L + w - R) / 2 - xw / 2 - 10 * d, h - 9.5 * d);
+    g.fillStyle = o.xColor;
+    g.fillRect((L + w - R) / 2 - xw / 2 - 13 * d, h - 12.5 * d, 6 * d, 6 * d);
+    const yw = g.measureText(o.yLabel).width;
+    tag(10.5 * d, (T + h - B) / 2 + yw / 2 + 10 * d);
+    g.fillStyle = o.yColor;
+    g.fillRect(7.5 * d, (T + h - B) / 2 + yw / 2 + 7 * d, 6 * d, 6 * d);
 
     g.save();
     g.beginPath();
-    g.rect(L + d, T, w - L - R, h - B - T);
+    g.rect(L + d, T, w - L - R, h - B - T - d);
     g.clip();
-    for (const [p, color] of [[o.theoryEq, THEORY], [o.eq, MUTED]]) {
+    for (const [p, color] of [[o.theoryEq, C.theory], [o.eq, C.muted]]) {
       if (!p) continue;
       g.strokeStyle = color;
       g.lineWidth = d;
@@ -175,18 +228,18 @@ export class PhaseChart {
     }
     g.setLineDash([]);
     if (o.theory) {
-      g.strokeStyle = THEORY;
-      g.lineWidth = 1.5 * d;
+      g.strokeStyle = C.theory;
+      g.lineWidth = 2 * d;
       g.setLineDash([2 * d, 3 * d]);
       polyline(g, o.theory, X, Y);
       g.setLineDash([]);
     }
-    g.strokeStyle = INK;
-    g.lineWidth = 1.4 * d;
+    g.strokeStyle = C.ink;
+    g.lineWidth = 1.6 * d;
     g.lineCap = 'round';
     const n = o.x.length;
     for (let i = 1; i < n; i++) {
-      g.globalAlpha = 0.06 + 0.94 * (i / n) ** 1.5;
+      g.globalAlpha = 0.06 + 0.94 * (i / n) ** 1.5; // older samples fade: the trail shows time
       g.beginPath();
       g.moveTo(X(o.x[i - 1]), Y(o.y[i - 1]));
       g.lineTo(X(o.x[i]), Y(o.y[i]));
@@ -194,21 +247,23 @@ export class PhaseChart {
     }
     g.globalAlpha = 1;
     if (o.prediction) {
-      g.strokeStyle = PREDICT;
-      g.lineWidth = 2 * d;
+      g.strokeStyle = C.accent;
+      g.lineWidth = 2.5 * d;
       g.setLineDash([6 * d, 4 * d]);
       polyline(g, o.prediction, X, Y);
       g.setLineDash([]);
     }
-    g.fillStyle = INK;
-    g.strokeStyle = '#05070a';
+    // the current state: a square marker with a hard shadow
+    const px = Math.round(X(o.x[n - 1]));
+    const py = Math.round(Y(o.y[n - 1]));
+    const s = 9 * d;
+    g.fillStyle = C.shade;
+    g.fillRect(px - s / 2 + 2 * d, py - s / 2 + 2 * d, s, s);
+    g.fillStyle = C.accent;
+    g.fillRect(px - s / 2, py - s / 2, s, s);
+    g.strokeStyle = C.ink;
     g.lineWidth = 2 * d;
-    g.beginPath();
-    g.arc(X(o.x[n - 1]), Y(o.y[n - 1]), 4.5 * d, 0, 2 * Math.PI);
-    g.fill();
-    g.stroke();
+    g.strokeRect(px - s / 2, py - s / 2, s, s);
     g.restore();
   }
 }
-
-export const CHART_COLORS = { INK, MUTED, PREDICT, THEORY };

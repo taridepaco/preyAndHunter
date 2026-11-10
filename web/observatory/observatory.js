@@ -8,7 +8,9 @@
  * Each model is analysed the same way (fixed point, eigenvalues, period, damping) and its
  * prediction from the current state is drawn over the phase portrait.
  */
-import { CHART_COLORS, PhaseChart, SeriesChart } from './charts.js';
+import { num, t, tx } from '../i18n.js';
+import { fillRange } from '../ui/panel.js';
+import { chartColors, PhaseChart, SeriesChart } from './charts.js';
 import { equation, mi, mo, number, rawEquation } from './equations.js';
 import { observedPeriod, prepare, sindy } from './fit.js';
 import { eigen2, mean, oscillation, smooth } from './linalg.js';
@@ -25,8 +27,9 @@ const PREDICT_TICKS = 600;
 const TRANSIENT_AFTER_RESET = 500; // ticks ignored by the fits after a reset…
 const TRANSIENT_AFTER_CHANGE = 300; // …and after a parameter change
 
-const fmt = (v) => (Number.isFinite(v) ? Math.round(v).toLocaleString('es-ES') : '—');
-const dec = (v, d = 2) => v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmt = (v) => (Number.isFinite(v) ? num(Math.round(v)) : '—');
+const dec = (v, d = 2) => num(v, { minimumFractionDigits: d, maximumFractionDigits: d });
+const lower = (name) => tx(name).toLowerCase();
 
 function stored(key, fallback) {
   try { return localStorage.getItem(key) ?? fallback; } catch { return fallback; }
@@ -36,18 +39,15 @@ function store(key, value) {
 }
 
 function dynamics(stability, observed) {
-  const obs = Number.isFinite(observed) ? ` · observado <b>${fmt(observed)}</b>` : '';
-  if (!stability) return 'Sin equilibrio con las dos especies vivas.';
+  const obs = Number.isFinite(observed) ? t('d.observed', { n: fmt(observed) }) : '';
+  if (!stability) return t('d.none');
   const o = stability.oscillation;
-  if (!o) {
-    return (stability.stable ? 'No oscila: vuelve al equilibrio sin dar vueltas' : 'No oscila: se aleja del equilibrio') +
-      (obs ? ` (periodo${obs})` : '');
-  }
+  if (!o) return t(stability.stable ? 'd.stableNoOsc' : 'd.unstableNoOsc') + (obs ? t('d.period', { obs }) : '');
   let kind;
-  if (Math.abs(o.damping) < 2e-4) kind = 'órbitas cerradas, como en Lotka-Volterra';
-  else if (o.damping < 0) kind = `espiral que se amortigua a la mitad cada <b>${fmt(Math.LN2 / -o.damping)}</b> ticks`;
-  else kind = `espiral que crece al doble cada <b>${fmt(Math.LN2 / o.damping)}</b> ticks`;
-  return `Periodo predicho <b>${fmt(o.period)}</b> ticks${obs} · ${kind}`;
+  if (Math.abs(o.damping) < 2e-4) kind = t('d.closed');
+  else if (o.damping < 0) kind = t('d.damped', { n: fmt(Math.LN2 / -o.damping) });
+  else kind = t('d.growing', { n: fmt(Math.LN2 / o.damping) });
+  return t('d.predicted', { n: fmt(o.period), obs, kind });
 }
 
 export class Observatory {
@@ -75,14 +75,22 @@ export class Observatory {
     const obs = def.observatory ?? {};
     this.prey = species.find((s) => s.id === obs.prey) ?? species[0];
     this.pred = species.find((s) => s.id === obs.predator) ?? species[1];
-    this.tabs = [
-      { id: 'lv', label: 'Lotka-Volterra' },
-      grassOn ? { id: 'resource', label: 'Con hierba' } : { id: 'meanfield', label: 'Campo medio' },
-      { id: 'sindy', label: 'SINDy' },
-    ];
-    if (!this.tabs.some((t) => t.id === this.tab)) this.tab = this.tabs[1].id;
+    this.tabs = ['lv', grassOn ? 'resource' : 'meanfield', 'sindy'];
+    if (!this.tabs.includes(this.tab)) this.tab = this.tabs[1];
     this.renderTabs();
     this.reset();
+  }
+
+  /** The language changed: redo every text. */
+  relabel() {
+    this.renderTabs();
+    this.renderModel();
+    this.dirty = true;
+  }
+
+  /** The theme changed: the charts read their colours again. */
+  restyle() {
+    this.dirty = true;
   }
 
   /** The world was reseeded. */
@@ -138,23 +146,23 @@ export class Observatory {
   }
 
   fit() {
-    const { t, vars } = this.fitWindow();
+    const { t: time, vars } = this.fitWindow();
     const c = this.prey.symbol;
     const z = this.pred.symbol;
     const m = {
-      samples: t.length,
-      span: t.length > 1 ? t[t.length - 1] - t[0] : 0,
-      observedPeriod: observedPeriod(t, vars[c]),
+      samples: time.length,
+      span: time.length > 1 ? time[time.length - 1] - time[0] : 0,
+      observedPeriod: observedPeriod(time, vars[c]),
       mean: Object.fromEntries(Object.entries(vars).map(([k, v]) => [k, v.length ? mean(v) : NaN])),
     };
     if (!this.grassOn) m.meanfield = this.meanField();
     this.models = m;
-    if (t.length < MIN_SAMPLES) return;
+    if (time.length < MIN_SAMPLES) return;
     if (vars[c].some((v) => v <= 0) || vars[z].some((v) => v <= 0)) {
       m.extinct = true;
       return;
     }
-    const prep = prepare(t, vars);
+    const prep = prepare(time, vars);
     m.lv = sindy(prep, [
       { target: c, log: true, terms: ['1', z] },
       { target: z, log: true, terms: ['1', c] },
@@ -212,11 +220,14 @@ export class Observatory {
     const N = this.cells;
     const i0 = Math.max(0, s.length - SHOWN);
     const panels = [
-      { label: this.prey.name, color: this.prey.color, values: s.pop[this.prey.index].slice(i0) },
-      { label: this.pred.name, color: this.pred.color, values: s.pop[this.pred.index].slice(i0) },
+      { label: tx(this.prey.name), color: this.prey.color, values: s.pop[this.prey.index].slice(i0) },
+      { label: tx(this.pred.name), color: this.pred.color, values: s.pop[this.pred.index].slice(i0) },
     ];
     if (this.grassOn) {
-      panels.push({ label: 'Hierba madura', color: '#5c9e33', values: s.grass.slice(i0).map((v) => (100 * v) / N), format: (v) => `${dec(v, 1)} %` });
+      panels.push({
+        label: t('grass.series'), color: chartColors.grass, values: s.grass.slice(i0).map((v) => (100 * v) / N),
+        format: (v) => t('grass.pct', { p: dec(v, 1) }),
+      });
     }
     this.seriesChart.draw(panels, Math.max(0, s.length - i0 - 1) * this.sampleEvery);
 
@@ -229,8 +240,8 @@ export class Observatory {
     this.phaseChart.draw({
       x: trail(s.pop[this.prey.index]),
       y: trail(s.pop[this.pred.index]),
-      xLabel: this.prey.name,
-      yLabel: this.pred.name,
+      xLabel: tx(this.prey.name),
+      yLabel: tx(this.pred.name),
       xColor: this.prey.color,
       yColor: this.pred.color,
       eq: theory ? null : eq,
@@ -243,15 +254,16 @@ export class Observatory {
   renderTabs() {
     const box = this.els.tabs;
     box.innerHTML = '';
-    for (const t of this.tabs) {
+    for (const id of this.tabs) {
       const b = document.createElement('button');
       b.type = 'button';
+      b.className = 'chip';
       b.setAttribute('role', 'tab');
-      b.setAttribute('aria-selected', String(t.id === this.tab));
-      b.textContent = t.label;
+      b.setAttribute('aria-selected', String(id === this.tab));
+      b.textContent = t(`m.${id}`);
       b.addEventListener('click', () => {
-        this.tab = t.id;
-        store('prey.tab', t.id);
+        this.tab = id;
+        store('prey.tab', id);
         this.renderTabs();
         this.renderModel();
         this.dirty = true;
@@ -260,11 +272,9 @@ export class Observatory {
     }
     const theory = this.tab === 'meanfield';
     this.els.legend.innerHTML =
-      `<span><i style="border-color:${CHART_COLORS.INK}"></i>Trayectoria real</span>` +
-      (theory
-        ? `<span><i style="border-color:${CHART_COLORS.THEORY};border-top-style:dotted"></i>Teoría de campo medio desde ahora</span>`
-        : `<span><i style="border-color:${CHART_COLORS.PREDICT};border-top-style:dashed"></i>Lo que predice el modelo desde ahora</span>`) +
-      `<span><i style="border-color:${theory ? CHART_COLORS.THEORY : CHART_COLORS.MUTED};border-top-style:dashed;border-top-width:1px"></i>Equilibrio</span>`;
+      `<span><i class="k-real"></i>${t('k.real')}</span>` +
+      (theory ? `<span><i class="k-theory"></i>${t('k.theory')}</span>` : `<span><i class="k-predict"></i>${t('k.predict')}</span>`) +
+      `<span><i class="k-eq${theory ? ' theory' : ''}"></i>${t('k.eq')}</span>`;
   }
 
   renderModel() {
@@ -274,25 +284,25 @@ export class Observatory {
     const c = this.prey.symbol;
     const z = this.pred.symbol;
     const names = `${c}, ${z}${this.grassOn ? ', h' : ''}`;
-    const vars = `${names}: fracción de celdas con ${this.prey.name.toLowerCase()}, ${this.pred.name.toLowerCase()}${this.grassOn ? ' y hierba madura' : ''}`;
+    const vars = t(this.grassOn ? 'o.vars3' : 'o.vars2', { names, prey: lower(this.prey.name), pred: lower(this.pred.name) });
 
     if (this.tab === 'meanfield') {
       el.innerHTML = this.meanFieldHTML(m.meanfield ?? this.meanField(), vars);
       return;
     }
     if (m.extinct) {
-      el.innerHTML = '<p class="wait">Una de las especies se ha extinguido: ya no hay ciclo que ajustar.</p>';
+      el.innerHTML = `<p class="wait">${t('o.extinct')}</p>`;
       return;
     }
     const model = m[this.tab];
     if (!model) {
       const pct = Math.min(99, Math.round((100 * (m.samples ?? 0)) / MIN_SAMPLES));
-      el.innerHTML = `<p class="wait">Recogiendo datos para ajustar las ecuaciones… ${pct} %</p>`;
+      el.innerHTML = `<p class="wait">${t('o.collecting', { p: pct })}</p>`;
       return;
     }
     let html = '';
     if (this.tab === 'sindy') {
-      html += `<label class="threshold">Umbral de poda <input type="range" min="0" max="0.5" step="0.01" value="${this.threshold}"><output>${dec(this.threshold)}</output></label>`;
+      html += `<label class="control threshold"><span>${t('o.threshold')}</span><input type="range" min="0" max="0.5" step="0.01" value="${this.threshold}"><output>${dec(this.threshold)}</output></label>`;
     }
     html += `<div class="eqs">${model.equations.map((e) => equation(e.target, e.terms, { log: e.log })).join('')}</div>`;
     const facts = [];
@@ -300,18 +310,22 @@ export class Observatory {
     if (this.tab === 'sindy') {
       const kept = model.equations.reduce((k, e) => k + e.terms.length, 0);
       const total = 2 * (this.grassOn ? 4 : 3) + (this.grassOn ? 4 : 0);
-      facts.push(`Se quedan <b>${kept}</b> de ${total} términos posibles`);
+      facts.push(t('o.kept', { k: kept, n: total }));
     }
     const fp = model.fixedPoint;
     facts.push(fp
-      ? `Equilibrio: <b>${fmt(fp[0] * N)}</b> ${this.prey.name.toLowerCase()} y <b>${fmt(fp[1] * N)}</b> ${this.pred.name.toLowerCase()} (media observada ${fmt(m.mean[c] * N)} y ${fmt(m.mean[z] * N)})`
-      : 'Este modelo no tiene un equilibrio con todas las especies vivas.');
+      ? t('o.eq', {
+        a: fmt(fp[0] * N), prey: lower(this.prey.name), b: fmt(fp[1] * N), pred: lower(this.pred.name),
+        ma: fmt(m.mean[c] * N), mb: fmt(m.mean[z] * N),
+      })
+      : t('o.noEq'));
     facts.push(dynamics(model.stability, m.observedPeriod));
     html += `<ul class="facts">${facts.map((f) => `<li>${f}</li>`).join('')}</ul>`;
-    html += `<p class="legend-vars">${vars}. Ajuste sobre los últimos ${fmt(m.span)} ticks.</p>`;
+    html += `<p class="legend-vars">${t('o.span', { vars, n: fmt(m.span) })}</p>`;
     el.innerHTML = html;
     const slider = el.querySelector('.threshold input');
     if (slider) {
+      fillRange(slider);
       slider.addEventListener('input', () => {
         this.threshold = Number(slider.value);
         slider.nextElementSibling.textContent = dec(this.threshold);
@@ -334,17 +348,17 @@ export class Observatory {
     const eqB = rawEquation(b, `${number(lambda)}${D}${mi(a)}${D}${mi(b)}${mo('−')}${number(mu)}${D}${mi(b)}`);
     const N = this.cells;
     const m = this.models;
-    const facts = [
-      `σ = <b>${dec(sigma)}</b>, λ = <b>${dec(lambda)}</b>, μ = <b>${dec(mu, 3)}</b>: los parámetros del mundo, sin ajustar nada`,
-    ];
+    const facts = [t('mf.params', { s: dec(sigma), l: dec(lambda), m: dec(mu, 3) })];
     if (mf.fixedPoint) {
-      const obs = Number.isFinite(m.mean?.[a]) ? ` · en la rejilla, media observada <b>${fmt(m.mean[a] * N)}</b> y <b>${fmt(m.mean[b] * N)}</b>` : '';
-      facts.push(`Equilibrio teórico: <b>${fmt(mf.fixedPoint[0] * N)}</b> ${this.prey.name.toLowerCase()} y <b>${fmt(mf.fixedPoint[1] * N)}</b> ${this.pred.name.toLowerCase()}${obs}`);
+      const obs = Number.isFinite(m.mean?.[a]) ? t('mf.obs', { a: fmt(m.mean[a] * N), b: fmt(m.mean[b] * N) }) : '';
+      facts.push(t('mf.eq', {
+        a: fmt(mf.fixedPoint[0] * N), prey: lower(this.prey.name), b: fmt(mf.fixedPoint[1] * N), pred: lower(this.pred.name), obs,
+      }));
       facts.push(dynamics(mf.stability, m.observedPeriod));
     } else {
-      facts.push('Con estos parámetros la teoría dice que los depredadores no sobreviven (μ ≥ λ).');
+      facts.push(t('mf.dies'));
     }
-    facts.push('La teoría supone una sopa bien mezclada. En la rejilla cada animal solo ve a sus vecinos: presas y depredadores forman manchas y el equilibrio real se aparta del teórico.');
+    facts.push(t('mf.soup'));
     return `<div class="eqs">${eqA}${eqB}</div><ul class="facts">${facts.map((f) => `<li>${f}</li>`).join('')}</ul><p class="legend-vars">${vars}.</p>`;
   }
 }

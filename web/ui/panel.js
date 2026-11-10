@@ -1,7 +1,8 @@
 /* Side panel: species cards with live sliders, and the brush tools. */
 import { STATS, TOOL } from '../engine/rules.js';
+import { num, t, tx } from '../i18n.js';
 
-const fmtInt = (v) => Math.round(v).toLocaleString('es-ES');
+const fmtInt = (v) => num(Math.round(v));
 
 function decimals(step) {
   const s = String(step);
@@ -19,17 +20,31 @@ function el(tag, attrs = {}, ...children) {
   return e;
 }
 
+/** Tells the slider's track how far to fill (style.css draws it from --p, 0 to 1). */
+export function fillRange(input) {
+  const min = Number(input.min || 0);
+  const max = Number(input.max || 100);
+  const p = max > min ? (Number(input.value) - min) / (max - min) : 0;
+  input.style.setProperty('--p', String(Math.min(1, Math.max(0, p))));
+}
+
 function slider(control, value, onInput) {
   const digits = decimals(control.step);
-  const show = (v) => Number(v).toLocaleString('es-ES', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  const show = (v) => num(Number(v), { minimumFractionDigits: digits, maximumFractionDigits: digits });
   const input = el('input', { type: 'range', min: control.min, max: control.max, step: control.step, value });
   const out = el('output', {}, show(value));
+  fillRange(input);
   input.addEventListener('input', () => {
     out.textContent = show(input.value);
     onInput(Number(input.value));
   });
-  const label = control.unit ? `${control.label} (${control.unit})` : control.label;
-  return el('label', { class: 'control' }, label, input, out);
+  const name = tx(control.label);
+  const label = control.unit ? `${name} (${control.unit})` : name;
+  return el('label', { class: 'control' }, el('span', {}, label), input, out);
+}
+
+function card(swatch, name, count) {
+  return el('div', { class: 'sp' }, el('div', { class: 'sp-head' }, swatch, el('h3', {}, name), count));
 }
 
 /**
@@ -43,52 +58,54 @@ export function buildSpeciesPanel(container, def, species, { onChange }) {
   for (const s of species) {
     const count = el('span', { class: 'count' }, '—');
     counts.set(s.index, count);
-    const card = el('div', { class: 'card' },
-      el('div', { class: 'card-head' }, el('span', { class: 'swatch', style: `background:${s.color}` }), el('strong', {}, s.name), count));
+    const box = card(el('span', { class: 'swatch', style: `background:${s.color}` }), tx(s.name), count);
     const spec = def.species.find((x) => x.id === s.id);
     for (const c of def.controls ?? []) {
       if (c.species !== s.id) continue;
-      card.append(slider(c, spec[c.key], (v) => { spec[c.key] = v; onChange(); }));
+      box.append(slider(c, spec[c.key], (v) => { spec[c.key] = v; onChange(); }));
     }
-    container.append(card);
+    container.append(box);
   }
   let grassCount = null;
   if (def.grass) {
     grassCount = el('span', { class: 'count' }, '—');
-    const card = el('div', { class: 'card' },
-      el('div', { class: 'card-head' }, el('span', { class: 'swatch', style: 'background:#4f8a2b' }), el('strong', {}, 'Hierba'), grassCount));
+    const box = card(el('span', { class: 'swatch grass' }), t('grass'), grassCount);
     for (const c of def.controls ?? []) {
       if (!c.grass) continue;
-      card.append(slider(c, def.grass[c.grass], (v) => { def.grass[c.grass] = v; onChange(); }));
+      box.append(slider(c, def.grass[c.grass], (v) => { def.grass[c.grass] = v; onChange(); }));
     }
-    container.append(card);
+    container.append(box);
   }
   return {
     update(stats, cells) {
       for (const [index, node] of counts) node.textContent = fmtInt(stats[STATS.POP + index]);
-      if (grassCount) grassCount.textContent = `${Math.round((100 * stats[STATS.GRASS_FULL]) / cells)} % madura`;
+      if (grassCount) grassCount.textContent = t('grass.mature', { p: Math.round((100 * stats[STATS.GRASS_FULL]) / cells) });
     },
   };
 }
 
-/** Brush tools: one button per species, grass (if the world has it) and erase. */
-export function buildTools(container, def, species, { onSelect }) {
+/**
+ * Brush tools: one chip per species, grass (if the world has it) and erase. `selected` keeps
+ * a previous choice by id; otherwise the predator is picked.
+ */
+export function buildTools(container, def, species, { onSelect, selected = null }) {
   container.innerHTML = '';
-  const tools = species.map((s) => ({ label: s.name, color: s.color, tool: TOOL.ANIMAL, species: s.index, id: s.id }));
-  if (def.grass) tools.push({ label: 'Hierba', color: '#4f8a2b', tool: TOOL.GRASS, species: 0, id: 'hierba' });
-  tools.push({ label: 'Borrar', color: null, tool: TOOL.ERASE, species: 0, id: 'borrar' });
+  const tools = species.map((s) => ({ label: tx(s.name), color: s.color, tool: TOOL.ANIMAL, species: s.index, id: s.id }));
+  if (def.grass) tools.push({ label: t('grass'), swatch: 'grass', tool: TOOL.GRASS, species: 0, id: 'hierba' });
+  tools.push({ label: t('erase'), tool: TOOL.ERASE, species: 0, id: 'borrar' });
   const buttons = [];
-  const select = (t) => {
-    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.id === t.id));
-    onSelect(t);
+  const select = (tl) => {
+    for (const b of buttons) b.setAttribute('aria-pressed', String(b.dataset.id === tl.id));
+    onSelect(tl);
   };
-  for (const t of tools) {
-    const b = el('button', { type: 'button', 'aria-pressed': 'false', 'data-id': t.id },
-      t.color ? el('span', { class: 'swatch', style: `background:${t.color}` }) : '', t.label);
-    b.addEventListener('click', () => select(t));
+  for (const tl of tools) {
+    const swatch = tl.color ? el('span', { class: 'swatch', style: `background:${tl.color}` })
+      : tl.swatch ? el('span', { class: `swatch ${tl.swatch}` }) : '';
+    const b = el('button', { type: 'button', class: 'chip', 'aria-pressed': 'false', 'data-id': tl.id }, swatch, tl.label);
+    b.addEventListener('click', () => select(tl));
     buttons.push(b);
     container.append(b);
   }
-  const preferred = tools.find((t) => t.id === def.observatory?.predator) ?? tools[0];
+  const preferred = tools.find((tl) => tl.id === selected) ?? tools.find((tl) => tl.id === def.observatory?.predator) ?? tools[0];
   select(preferred);
 }

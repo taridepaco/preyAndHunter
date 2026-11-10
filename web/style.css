@@ -1,122 +1,224 @@
+/*
+ * Prey on top of the common system (system.css, copied unchanged from taridepaco.github.io).
+ * Here lives only what the system does not cover: the app layout, the world's screen, the
+ * simulator's own controls (selects, sliders, tabs) and the observatory. Components use tokens
+ * only; the literal colours below are Prey's own tokens, each with a day and a night value.
+ */
 :root {
-  --bg: #05070a;
-  --panel: #10161d;
-  --panel-2: #141c25;
-  --line: #243040;
-  --ink: #e6edf3;
-  --muted: #8b98a7;
-  --faint: #5b6776;
-  --accent: #ffb454;
-  --accent-ink: #1a1206;
-  --danger: #ff7b72;
-  --predict: #ff8f6b;
-  --side: 430px;
-  color-scheme: dark;
+  --side: 440px;
+  --gap: 22px;
+  /* the world's ground (read by main.js for the GPU) and the theory line of the charts */
+  --sim-soil: #6a4a33;     /* tierra */
+  --sim-grass-lo: #5a7a3c;
+  --sim-grass-hi: #4f8f47; /* bosque */
+  --sim-bare: #f7f2d6;
+  --sim-outside: #d9cfa6;
+  --c-theory: #2f7e96;
 }
 
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--bg);
-  color: var(--ink);
-  font: 14px/1.4 system-ui, "Segoe UI", sans-serif;
+/* night values: both blocks must carry the same values (as in system.css) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --sim-soil: #2a2119;
+    --sim-grass-lo: #2c4326;
+    --sim-grass-hi: #3b6b36;
+    --sim-bare: #12222b;
+    --sim-outside: #0a141a;
+    --c-theory: #62bcd6;
+  }
+}
+:root[data-theme="dark"] {
+  --sim-soil: #2a2119;
+  --sim-grass-lo: #2c4326;
+  --sim-grass-hi: #3b6b36;
+  --sim-bare: #12222b;
+  --sim-outside: #0a141a;
+  --c-theory: #62bcd6;
 }
 
+/* ---- page: a full-height app on wide screens, a scrolling page on narrow ones ------------ */
+html, body { height: 100%; }
 body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
 }
 
-/* ---- top bar (as in GameOfLifer) ------------------------------------------------ */
-.bar {
+.topbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 16px;
-  padding: 8px 16px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  gap: 8px 18px;
+  padding: max(10px, env(safe-area-inset-top, 0px)) 0 10px;
+  border-bottom: var(--bw) solid var(--line);
 }
+.topbar .back { text-decoration: none; font-weight: 700; }
+.topbar .back:hover { text-decoration: underline; text-underline-offset: 4px; }
+.topbar .title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-right: auto; min-width: 0; }
+.topbar h1 { font-size: 1.35rem; }
+.topbar nav a { text-underline-offset: 4px; }
 
-.brand { color: var(--accent); font-size: 16px; }
-.brand small { color: var(--muted); font-weight: 400; font-size: 12px; margin-left: 6px; }
-
-.group {
+.toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
+  gap: 12px 26px;
+  padding: 14px 0 18px;
+}
+.toolbar .group { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; }
+.toolbar label { flex-direction: row; align-items: center; gap: 8px; }
+
+/* the world's settings, inside its card */
+.fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 14px; align-items: end; }
+.fields select, .fields input { width: 100%; }
+.fields .btn { justify-content: center; }
+
+/* play / pause: the icon is drawn, so it looks the same with every font */
+.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; }
+.btn.play { min-width: 7.6em; justify-content: center; }
+.ico { width: .75em; height: .85em; background: currentColor; clip-path: polygon(0 0, 100% 50%, 0 100%); }
+.btn.play.running .ico {
+  clip-path: none;
+  background: linear-gradient(to right, currentColor 0 34%, transparent 34% 66%, currentColor 66% 100%);
 }
 
-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
-}
-
-button, select, input[type="number"] {
+/* ---- form controls the system does not have ------------------------------------------- */
+select {
+  -webkit-appearance: none;
+  appearance: none;
   font: inherit;
   color: var(--ink);
-  background: #1a222c;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  background-color: var(--bg);
+  border: var(--bw) solid var(--line);
+  border-radius: 0;
+  padding: 4px 32px 4px 10px;
+  min-height: 36px;
+  cursor: pointer;
+  /* a small pixel chevron in --ink */
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position: calc(100% - 17px) 55%, calc(100% - 11px) 55%;
+  background-size: 6px 6px;
+  background-repeat: no-repeat;
+}
+select option { background: var(--surface); color: var(--ink); }
+
+#seed { padding: 4px 8px; min-height: 36px; font-variant-numeric: tabular-nums; }
+
+output { font-family: var(--f-util); font-size: .75rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* slider: thick track filled in --second up to the value (--p, set by panel.js), square thumb */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  --p: .5;
+  --fill: calc(8px + (100% - 16px) * var(--p));
+}
+input[type="range"]::-webkit-slider-runnable-track {
+  box-sizing: border-box;
+  height: 14px;
+  border: var(--bw) solid var(--line);
+  background: linear-gradient(to right, var(--second) 0 var(--fill), var(--bg) var(--fill) 100%);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  width: 16px;
+  height: 24px;
+  margin-top: -8px;
+  background: var(--surface);
+  border: var(--bw) solid var(--line);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--shade);
+}
+input[type="range"]::-moz-range-track {
+  box-sizing: border-box;
+  height: 14px;
+  border: var(--bw) solid var(--line);
+  background: var(--bg);
+}
+input[type="range"]::-moz-range-progress { height: 8px; background: var(--second); }
+input[type="range"]::-moz-range-thumb {
+  box-sizing: border-box;
+  width: 16px;
+  height: 24px;
+  background: var(--surface);
+  border: var(--bw) solid var(--line);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--shade);
 }
 
-button { padding: 5px 10px; cursor: pointer; }
-button:hover { border-color: var(--accent); }
-button:focus-visible, select:focus-visible, input:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
-}
-#play { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; min-width: 84px; }
-select { padding: 4px 6px; }
-input[type="number"] { width: 92px; padding: 4px 6px; font-variant-numeric: tabular-nums; }
-input[type="range"] { accent-color: var(--accent); }
-output { color: var(--ink); font-variant-numeric: tabular-nums; }
-
-.stats {
-  margin-left: auto;
+/* a labelled slider: name, track, value */
+.control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px) 3.8em;
+  align-items: center;
+  gap: 10px;
+  font-size: .92rem;
   color: var(--muted);
-  font: 12px/1.3 ui-monospace, Consolas, monospace;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
+.control output { text-align: right; }
 
-/* ---- layout ----------------------------------------------------------------------- */
+/* tabs: chips joined like .lang-switch, the chosen one filled */
+.tabs { display: flex; flex-wrap: wrap; }
+.tabs .chip + .chip { border-left: 0; }
+.tabs .chip[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+
+.swatch { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid var(--line); }
+.swatch.grass { background: var(--sim-grass-hi); }
+
+/* ---- the world's screen --------------------------------------------------------------- */
 .app {
   flex: 1;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) var(--side);
+  gap: var(--gap);
 }
-
-.stage { position: relative; min-width: 0; min-height: 0; }
-
+.stage { min-width: 0; min-height: 0; padding: 0 5px 5px 0; } /* room for the hard shadow */
+.screen {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border: var(--bw) solid var(--line);
+  box-shadow: var(--shadow);
+  background: var(--sim-outside);
+  overflow: hidden;
+}
 #world {
   display: block;
   width: 100%;
   height: 100%;
   touch-action: none;
   cursor: crosshair;
+  image-rendering: pixelated;
 }
 #world.panning { cursor: grabbing; }
 
-.hint {
+/* labels over the screen, like a console's HUD: the live figures on top, the help below */
+.hud, .hint {
   position: absolute;
-  left: 12px;
-  bottom: 8px;
-  margin: 0;
-  padding: 3px 8px;
-  font-size: 12px;
-  color: var(--muted);
-  background: rgb(5 7 10 / 0.7);
-  border-radius: 4px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  padding: 4px 8px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 2px solid var(--line);
   pointer-events: none;
 }
+.hud { top: 10px; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.hud:empty { display: none; }
+.hint { bottom: 10px; }
 
 .error {
   position: absolute;
@@ -124,91 +226,77 @@ output { color: var(--ink); font-variant-numeric: tabular-nums; }
   display: grid;
   place-items: center;
   padding: 16px;
-  text-align: center;
-  color: var(--danger);
-  font-size: 16px;
-  white-space: pre-line;
   background: var(--bg);
 }
-.error[hidden] { display: none; }
+.error .card { max-width: 52ch; }
+.error p { white-space: pre-line; }
 
-/* ---- side panel -------------------------------------------------------------------- */
+/* ---- side panel ----------------------------------------------------------------------- */
 .side {
   min-height: 0;
   overflow-y: auto;
-  background: var(--panel);
-  border-left: 1px solid var(--line);
-  padding: 4px 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  padding: 0 10px 10px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
 }
+.side .card { gap: 12px; flex: none; }
+.desc { color: var(--muted); }
 
-.side section { padding: 12px 0; border-bottom: 1px solid var(--line); }
-.side section:last-child { border-bottom: 0; }
-.side h2 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em; }
-.side h2 .note { font-weight: 400; color: var(--faint); }
-.desc { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
-
-.cards { display: grid; gap: 8px; }
-.card {
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+.species { display: grid; gap: 12px; }
+.sp {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: var(--bw) solid var(--line);
 }
-.card-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
-.card-head strong { font-weight: 600; }
-.card-head .count { margin-left: auto; font: 13px ui-monospace, Consolas, monospace; color: var(--ink); font-variant-numeric: tabular-nums; }
-.control { display: grid; grid-template-columns: 1fr 120px 44px; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 2px 0; }
-.control input { width: 100%; }
-.control output { text-align: right; font-size: 12px; }
+.sp-head { display: flex; align-items: center; gap: 10px; }
+.sp-head h3 { font-size: .95rem; }
+.sp-head .count { margin-left: auto; font-family: var(--f-util); font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
 
-.tools { display: flex; flex-wrap: wrap; gap: 6px; }
-.tools button { display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px; }
-.tools button[aria-pressed="true"] { border-color: var(--accent); background: #2a2214; }
-.brush-size { margin-top: 8px; display: grid; grid-template-columns: auto 1fr 36px; gap: 8px; align-items: center; font-size: 12px; }
+.tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.tools .chip { display: inline-flex; align-items: center; gap: 8px; }
 
-/* ---- observatory --------------------------------------------------------------------- */
-.chart { position: relative; width: 100%; }
+/* ---- observatory ---------------------------------------------------------------------- */
+.chart { position: relative; width: 100%; border: var(--bw) solid var(--line); background: var(--bg); }
 .chart canvas { display: block; width: 100%; height: 100%; }
-#series-wrap { height: 170px; }
-#phase-wrap { height: 300px; margin-top: 10px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 11px; color: var(--muted); }
-.legend span { display: inline-flex; align-items: center; gap: 5px; }
-.legend i { display: inline-block; width: 16px; border-top: 2px solid; }
+#series-wrap { height: 186px; }
+#phase-wrap { height: 300px; }
 
-.tabs { display: flex; gap: 4px; margin-top: 12px; border-bottom: 1px solid var(--line); }
-.tabs button {
-  border: 1px solid transparent;
-  border-bottom: 0;
-  border-radius: 6px 6px 0 0;
-  background: transparent;
-  color: var(--muted);
-  padding: 5px 10px;
-  margin-bottom: -1px;
-}
-.tabs button[aria-selected="true"] { color: var(--ink); background: var(--panel-2); border-color: var(--line); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { display: inline-block; width: 20px; border-top: 3px solid var(--ink); }
+.legend .k-predict { border-top-color: var(--accent); border-top-style: dashed; }
+.legend .k-theory { border-top-color: var(--c-theory); border-top-style: dotted; }
+.legend .k-eq { border-top-color: var(--muted); border-top-style: dashed; border-top-width: 2px; }
+.legend .k-eq.theory { border-top-color: var(--c-theory); }
 
 .model {
-  background: var(--panel-2);
-  border: 1px solid var(--line);
-  border-top: 0;
-  border-radius: 0 0 8px 8px;
-  padding: 10px 12px;
+  margin-top: calc(-1 * var(--bw));
+  padding: 12px;
   min-height: 120px;
+  background: var(--bg);
+  border: var(--bw) solid var(--line);
 }
-.model math { font-size: 16px; margin: 2px 0; }
-.model .eqs { display: grid; gap: 4px; padding: 4px 0 8px; overflow-x: auto; }
-.model .facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
-.model .facts b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
-.model .wait { color: var(--muted); font-size: 13px; }
-.model .threshold { display: grid; grid-template-columns: auto 1fr 36px; gap: 8px; align-items: center; font-size: 12px; margin: 0 0 8px; }
-.model .legend-vars { font-size: 11px; color: var(--faint); margin-top: 6px; }
+.model math { font-size: 1.05rem; margin: 2px 0; }
+.model .eqs { display: grid; gap: 6px; padding: 2px 0 10px; overflow-x: auto; }
+.model .facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 5px; font-size: .9rem; color: var(--muted); }
+.model .facts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.model .wait { color: var(--muted); }
+.model .threshold { margin: 0 0 10px; }
+.model .legend-vars { margin-top: 10px; font-size: .82rem; color: var(--muted); }
 
+/* ---- narrow screens: one column, the page scrolls ------------------------------------ */
 @media (max-width: 900px) {
-  body { overflow: auto; }
-  .app { grid-template-columns: 1fr; }
-  .stage { height: 62vh; }
-  .side { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
-  .stats { margin-left: 0; width: 100%; }
+  html, body { height: auto; }
+  body { overflow: visible; }
+  .app { grid-template-columns: minmax(0, 1fr); }
+  .stage { height: min(64vh, 100vw); }
+  .side { overflow: visible; padding: 0 5px 5px 0; }
+  .hud { left: 6px; top: 6px; max-width: calc(100% - 12px); }
   .hint { display: none; }
 }

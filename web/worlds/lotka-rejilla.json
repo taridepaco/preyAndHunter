@@ -1,15 +1,18 @@
 {
   "id": "lotka",
-  "name": "Lotka en rejilla",
-  "description": "El modelo estocástico de Lotka-Volterra en rejilla: la presa nace en una celda vecina vacía (σ), el depredador que encuentra una presa la convierte en su cría (λ) y muere al azar (μ). Su ecuación de campo medio es da/dt = σa(1−a−b) − λab, db/dt = λab − μb.",
+  "name": { "es": "Lotka en rejilla", "en": "Lotka on a lattice" },
+  "description": {
+    "es": "El modelo estocástico de Lotka-Volterra en rejilla: la presa nace en una celda vecina vacía (σ), el depredador que encuentra una presa la convierte en su cría (λ) y muere al azar (μ). Su ecuación de campo medio es da/dt = σa(1−a−b) − λab, db/dt = λab − μb.",
+    "en": "The stochastic lattice Lotka-Volterra model: prey are born in an empty neighbouring cell (σ), a predator that finds prey turns it into its offspring (λ) and dies at random (μ). Its mean-field equation is da/dt = σa(1−a−b) − λab, db/dt = λab − μb."
+  },
   "size": 256,
   "grass": null,
   "species": [
     {
       "id": "presa",
-      "name": "Presas",
+      "name": { "es": "Presas", "en": "Prey" },
       "symbol": "a",
-      "color": "#5dcaa5",
+      "color": "#2f7e96",
       "density": 0.3,
       "birth": 0.5,
       "move": 0.1,
@@ -19,9 +22,9 @@
     },
     {
       "id": "depredador",
-      "name": "Depredadores",
+      "name": { "es": "Depredadores", "en": "Predators" },
       "symbol": "b",
-      "color": "#d85a30",
+      "color": "#d9442e",
       "density": 0.1,
       "diet": ["presa"],
       "hunt": 0.5,
@@ -35,10 +38,10 @@
   ],
   "observatory": { "prey": "presa", "predator": "depredador", "resource": false, "meanField": "lotka-logistic" },
   "controls": [
-    { "species": "presa", "key": "birth", "label": "σ, nacimiento", "min": 0.01, "max": 1, "step": 0.01 },
-    { "species": "presa", "key": "move", "label": "Movilidad", "min": 0, "max": 1, "step": 0.01 },
-    { "species": "depredador", "key": "hunt", "label": "λ, depredación", "min": 0.01, "max": 1, "step": 0.01 },
-    { "species": "depredador", "key": "death", "label": "μ, muerte", "min": 0.005, "max": 0.5, "step": 0.005 },
-    { "species": "depredador", "key": "move", "label": "Movilidad", "min": 0, "max": 1, "step": 0.01 }
+    { "species": "presa", "key": "birth", "label": { "es": "σ, nacimiento", "en": "σ, birth" }, "min": 0.01, "max": 1, "step": 0.01 },
+    { "species": "presa", "key": "move", "label": { "es": "Movilidad", "en": "Mobility" }, "min": 0, "max": 1, "step": 0.01 },
+    { "species": "depredador", "key": "hunt", "label": { "es": "λ, depredación", "en": "λ, predation" }, "min": 0.01, "max": 1, "step": 0.01 },
+    { "species": "depredador", "key": "death", "label": { "es": "μ, muerte", "en": "μ, death" }, "min": 0.005, "max": 0.5, "step": 0.005 },
+    { "species": "depredador", "key": "move", "label": { "es": "Movilidad", "en": "Mobility" }, "min": 0, "max": 1, "step": 0.01 }
   ]
 }

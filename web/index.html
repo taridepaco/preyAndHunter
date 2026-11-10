@@ -2,62 +2,113 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Prey</title>
   <meta name="description" content="Ecosistemas vivos en la GPU: conejos, zorros y hierba en millones de celdas, y las ecuaciones de Lotka-Volterra descubiertas en directo.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%234f8a2b'/%3E%3Ccircle cx='5.5' cy='6' r='2.6' fill='%23eda100'/%3E%3Ccircle cx='10.5' cy='10' r='2.6' fill='%238f84ea'/%3E%3C/svg%3E">
+  <meta property="og:title" content="Prey · taridepaco">
+  <meta property="og:description" content="Ecosistemas vivos en la GPU: conejos, zorros y hierba en millones de celdas, y las ecuaciones de Lotka-Volterra descubiertas en directo.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#bfe3d6">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%2374b34e'/%3E%3Crect x='1.5' y='2.5' width='6' height='6' fill='%23f2b63d' stroke='%231f2a33' stroke-width='1.5'/%3E%3Crect x='8.5' y='7.5' width='6' height='6' fill='%23d9442e' stroke='%231f2a33' stroke-width='1.5'/%3E%3C/svg%3E">
+  <script>
+    // language before the first paint: ?lang=, then the last choice, then the browser (as on taridepaco.github.io)
+    (function () {
+      var l = null;
+      try {
+        var q = new URLSearchParams(location.search).get("lang"), s = null;
+        try { s = localStorage.getItem("taridepaco-lang"); } catch (e) { /* no storage */ }
+        var n = (navigator.languages && navigator.languages[0]) || navigator.language || "";
+        l = q || s || (/^es/i.test(n) ? "es" : "en");
+      } catch (e) { /* old browser */ }
+      document.documentElement.lang = l === "en" ? "en" : "es";
+    })();
+  </script>
+  <script src="theme.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Martian+Mono:wght@500;700&display=swap">
+  <link rel="stylesheet" href="system.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="bar">
-    <strong class="brand">Prey<small>ecosistemas en la GPU</small></strong>
-    <div class="group">
-      <button id="play" type="button" title="Reproducir / pausa (espacio)">▶ Play</button>
-      <button id="step" type="button" title="Un tick (N)">Paso</button>
-      <button id="reset" type="button" title="Volver a empezar con la misma semilla (R)">Reiniciar</button>
-      <button id="fit" type="button" title="Ver el mundo entero (F)">Encajar</button>
+  <header class="topbar">
+    <a class="util back" href="https://taridepaco.github.io/">← taridepaco</a>
+    <div class="title">
+      <h1>Prey</h1>
+      <span class="tag">WebGPU</span>
+      <span class="util muted" data-i18n="tagline">ecosistemas en la GPU</span>
     </div>
-    <div class="group">
-      <label>Mundo <select id="preset"></select></label>
-      <label>Tamaño <select id="size"></select></label>
-      <label>Velocidad <select id="speed"></select></label>
-      <label>Semilla <input id="seed" type="number" min="0" step="1"></label>
-      <button id="new-seed" type="button" title="Semilla nueva (S)">Nueva</button>
+    <nav class="util" aria-label="Enlaces / Links">
+      <a href="https://github.com/taridepaco/preyAndHunter" target="_blank" rel="noopener" data-i18n="nav.code">Código</a>
+    </nav>
+    <button class="chip" type="button" id="theme-btn">Tema: auto</button>
+    <div class="lang-switch" role="group" aria-label="Language / Idioma">
+      <button type="button" data-lang="es" lang="es" aria-label="Español" aria-pressed="true">ES</button>
+      <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
     </div>
-    <div id="stats" class="stats" aria-live="off"></div>
   </header>
+
+  <div class="toolbar" role="group" data-i18n-aria="controls">
+    <div class="group">
+      <button class="btn play" id="play" type="button" data-i18n-title="play.title"><span class="ico" aria-hidden="true"></span><span id="play-label">Play</span></button>
+      <button class="btn ghost" id="step" type="button" data-i18n="step" data-i18n-title="step.title">Paso</button>
+      <button class="btn ghost" id="reset" type="button" data-i18n="reset" data-i18n-title="reset.title">Reiniciar</button>
+      <button class="btn ghost" id="fit" type="button" data-i18n="fit" data-i18n-title="fit.title">Encajar</button>
+    </div>
+    <div class="group">
+      <label><span class="util" data-i18n="speed">Velocidad</span><select id="speed"></select></label>
+    </div>
+  </div>
 
   <div class="app">
     <main class="stage">
-      <canvas id="world"></canvas>
-      <p class="hint">Clic: pincel · Arrastre con botón derecho, central o Mayús: mover · Rueda: zoom</p>
-      <div id="error" class="error" hidden></div>
+      <div class="screen">
+        <canvas id="world"></canvas>
+        <p id="stats" class="hud util" aria-live="off"></p>
+        <p class="hint util" data-i18n="hint">Clic: pincel · Arrastre con botón derecho, central o Mayús: mover · Rueda: zoom</p>
+        <div id="error" class="error" hidden>
+          <div class="card">
+            <h2 data-i18n="err.title">No se puede simular</h2>
+            <p id="error-msg"></p>
+          </div>
+        </div>
+      </div>
     </main>
 
     <aside class="side">
-      <section>
-        <h2 id="world-name">Mundo</h2>
+      <section class="card">
+        <div class="row"><span class="tag" data-i18n="world">Mundo</span></div>
+        <h2 id="world-name">—</h2>
         <p id="world-desc" class="desc"></p>
+        <div class="fields">
+          <label><span class="util" data-i18n="world">Mundo</span><select id="preset"></select></label>
+          <label><span class="util" data-i18n="size">Tamaño</span><select id="size"></select></label>
+          <label><span class="util" data-i18n="seed">Semilla</span><input id="seed" type="number" min="0" step="1"></label>
+          <button class="btn ghost" id="new-seed" type="button" data-i18n="newSeed" data-i18n-title="newSeed.title">Nueva</button>
+        </div>
       </section>
 
-      <section>
-        <h2>Especies <span class="note">· los cambios se aplican en vivo</span></h2>
-        <div id="species" class="cards"></div>
+      <section class="card">
+        <h2 data-i18n="species">Especies</h2>
+        <p class="util muted" data-i18n="species.note">Los cambios se aplican en vivo</p>
+        <div id="species" class="species"></div>
       </section>
 
-      <section>
-        <h2>Pincel</h2>
-        <div id="tools" class="tools" role="group" aria-label="Herramienta del pincel"></div>
-        <label class="brush-size">Radio <input id="brush-radius" type="range" min="1" max="64" step="1" value="12"><output id="brush-radius-out">12</output></label>
+      <section class="card">
+        <h2 data-i18n="brush">Pincel</h2>
+        <div id="tools" class="tools" role="group" data-i18n-aria="brush.tools"></div>
+        <label class="control"><span data-i18n="brush.radius">Radio</span><input id="brush-radius" type="range" min="1" max="64" step="1" value="12"><output id="brush-radius-out">12</output></label>
       </section>
 
-      <section>
-        <h2>Observatorio <span id="obs-note" class="note"></span></h2>
-        <div id="series-wrap" class="chart"><canvas id="series" role="img" aria-label="Poblaciones a lo largo del tiempo"></canvas></div>
-        <div id="phase-wrap" class="chart"><canvas id="phase" role="img" aria-label="Retrato de fase: presas frente a depredadores"></canvas></div>
-        <div id="phase-legend" class="legend"></div>
-        <div id="model-tabs" class="tabs" role="tablist"></div>
-        <div id="model" class="model" role="tabpanel"></div>
+      <section class="card">
+        <h2 data-i18n="obs">Observatorio</h2>
+        <div id="series-wrap" class="chart"><canvas id="series" role="img" data-i18n-aria="chart.series"></canvas></div>
+        <div id="phase-wrap" class="chart"><canvas id="phase" role="img" data-i18n-aria="chart.phase"></canvas></div>
+        <div id="phase-legend" class="legend util"></div>
+        <div>
+          <div id="model-tabs" class="tabs" role="tablist" data-i18n-aria="models"></div>
+          <div id="model" class="model" role="tabpanel"></div>
+        </div>
       </section>
     </aside>
   </div>

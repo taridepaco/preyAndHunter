@@ -1,15 +1,18 @@
 {
   "id": "pradera",
-  "name": "La pradera",
-  "description": "Hierba que rebrota, conejos que la comen y zorros que cazan conejos. Cada animal gasta energía al vivir, la recupera comiendo y, cuando le sobra, deja una cría al moverse.",
+  "name": { "es": "La pradera", "en": "The meadow" },
+  "description": {
+    "es": "Hierba que rebrota, conejos que la comen y zorros que cazan conejos. Cada animal gasta energía al vivir, la recupera comiendo y, cuando le sobra, deja una cría al moverse.",
+    "en": "Grass that grows back, rabbits that eat it and foxes that hunt rabbits. Every animal spends energy to live, gets it back by eating and, when it has some to spare, leaves an offspring as it moves."
+  },
   "size": 512,
   "grass": { "regrowTicks": 40, "minGraze": 1 },
   "species": [
     {
       "id": "conejo",
-      "name": "Conejos",
+      "name": { "es": "Conejos", "en": "Rabbits" },
       "symbol": "c",
-      "color": "#eda100",
+      "color": "#f2b63d",
       "density": 0.08,
       "grazes": true,
       "grazeGain": 4,
@@ -21,9 +24,9 @@
     },
     {
       "id": "zorro",
-      "name": "Zorros",
+      "name": { "es": "Zorros", "en": "Foxes" },
       "symbol": "z",
-      "color": "#8f84ea",
+      "color": "#d9442e",
       "density": 0.01,
       "diet": ["conejo"],
       "preyGain": 14,
@@ -36,11 +39,11 @@
   ],
   "observatory": { "prey": "conejo", "predator": "zorro", "resource": true },
   "controls": [
-    { "grass": "regrowTicks", "label": "Rebrote de la hierba", "unit": "ticks", "min": 5, "max": 120, "step": 1 },
-    { "species": "conejo", "key": "grazeGain", "label": "Energía por hierba", "min": 1, "max": 12, "step": 1 },
-    { "species": "conejo", "key": "reproEnergy", "label": "Energía para criar", "min": 2, "max": 40, "step": 1 },
-    { "species": "zorro", "key": "preyGain", "label": "Energía por conejo", "min": 2, "max": 40, "step": 1 },
-    { "species": "zorro", "key": "reproEnergy", "label": "Energía para criar", "min": 4, "max": 70, "step": 1 },
-    { "species": "zorro", "key": "maxEnergy", "label": "Reserva máxima", "min": 10, "max": 200, "step": 1 }
+    { "grass": "regrowTicks", "label": { "es": "Rebrote de la hierba", "en": "Grass regrowth" }, "unit": "ticks", "min": 5, "max": 120, "step": 1 },
+    { "species": "conejo", "key": "grazeGain", "label": { "es": "Energía por hierba", "en": "Energy per grass" }, "min": 1, "max": 12, "step": 1 },
+    { "species": "conejo", "key": "reproEnergy", "label": { "es": "Energía para criar", "en": "Energy to breed" }, "min": 2, "max": 40, "step": 1 },
+    { "species": "zorro", "key": "preyGain", "label": { "es": "Energía por conejo", "en": "Energy per rabbit" }, "min": 2, "max": 40, "step": 1 },
+    { "species": "zorro", "key": "reproEnergy", "label": { "es": "Energía para criar", "en": "Energy to breed" }, "min": 4, "max": 70, "step": 1 },
+    { "species": "zorro", "key": "maxEnergy", "label": { "es": "Reserva máxima", "en": "Maximum reserve" }, "min": 10, "max": 200, "step": 1 }
   ]
 }

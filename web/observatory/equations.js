@@ -1,4 +1,5 @@
-/* Equations as native MathML (no libraries). Numbers use the Spanish decimal comma. */
+/* Equations as native MathML (no libraries). Numbers follow the page's language (decimal comma in Spanish). */
+import { locale } from '../i18n.js';
 
 const esc = (s) => String(s).replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
 export const mi = (s) => `<mi>${esc(s)}</mi>`;
@@ -12,11 +13,11 @@ export function number(v, digits = 2) {
   const sign = v < 0 ? mo('−') : '';
   if (a === 0) return mn('0');
   if (a >= 1e-3 && a < 1e5) {
-    return sign + mn(a.toLocaleString('es-ES', { maximumSignificantDigits: digits, useGrouping: false }));
+    return sign + mn(a.toLocaleString(locale(), { maximumSignificantDigits: digits, useGrouping: false }));
   }
   const e = Math.floor(Math.log10(a));
   const m = a / 10 ** e;
-  return `${sign}${mn(m.toLocaleString('es-ES', { maximumSignificantDigits: digits }))}${DOT}<msup>${mn('10')}${mn(e < 0 ? `−${-e}` : `${e}`)}</msup>`;
+  return `${sign}${mn(m.toLocaleString(locale(), { maximumSignificantDigits: digits }))}${DOT}<msup>${mn('10')}${mn(e < 0 ? `−${-e}` : `${e}`)}</msup>`;
 }
 
 const deriv = (v) => `<mfrac><mrow>${mi('d')}${mi(v)}</mrow><mrow>${mi('d')}${mi('t')}</mrow></mfrac>`;
