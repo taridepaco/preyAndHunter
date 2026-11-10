@@ -1,6 +1,7 @@
 // Draws the world with zoom and pan (ported from GameOfLifer's DRAW shader). Zoomed out, each
 // pixel averages up to 4×4 cells so the view shows densities instead of aliasing; zoomed in,
-// animals become square sprites whose brightness follows their energy.
+// animals become square sprites. Animals always keep their species colour: darkening them by
+// energy made the hungry ones (most of them) vanish into the soil.
 
 struct View {
   canvas: vec2<f32>,
@@ -14,7 +15,7 @@ struct View {
   grass_hi: vec4<f32>,
   outside: vec4<f32>,
   ring: vec4<f32>, // brush outline
-  colors: array<vec4<f32>, MAX_SPECIES>, // rgb + energy scale (0 = energy is not shown)
+  colors: array<vec4<f32>, MAX_SPECIES>, // rgb (+ an unused w)
 }
 
 @group(0) @binding(0) var<uniform> V: View;
@@ -35,10 +36,7 @@ fn ground(i: u32) -> vec3<f32> {
 }
 
 fn animal(w: u32) -> vec3<f32> {
-  let col = V.colors[w & 15u];
-  if (col.w <= 0.0) { return col.rgb; }
-  let ef = clamp(f32((w >> 4u) & 4095u) / col.w, 0.0, 1.0);
-  return col.rgb * (0.55 + 0.45 * ef);
+  return V.colors[w & 15u].rgb;
 }
 
 fn cell_color(ix: u32, iy: u32) -> vec3<f32> {

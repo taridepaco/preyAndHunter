@@ -21,10 +21,10 @@ const rgb = (hex) => {
 
 // Ground colours until the page sets its theme's (setColors). These are the night set.
 const DEFAULT_COLORS = {
-  soil: '#2a2119',
+  soil: '#17120e',
   bare: '#12222b', // ground of worlds without grass
-  grassLo: '#2c4326',
-  grassHi: '#3b6b36',
+  grassLo: '#1d3a22',
+  grassHi: '#2a6a35',
   outside: '#0a141a',
   ring: '#f1ead0', // the brush outline
 };
@@ -207,11 +207,7 @@ export class World {
     this.device.queue.writeBuffer(this.paramsBuf, 0, this.params);
     this.device.queue.writeBuffer(this.speciesBuf, 0, this.table);
     this.palette.fill(0);
-    for (const s of species) {
-      const o = s.index * SP.STRIDE;
-      const energyMatters = this.table[o + SP.METABOLISM] > 0;
-      this.palette.set([...rgb(s.color), energyMatters ? this.table[o + SP.MAX_ENERGY] : 0], s.index * 4);
-    }
+    for (const s of species) this.palette.set([...rgb(s.color), 1], s.index * 4);
   }
 
   /** Ground, outside and brush colours as hex strings ({soil, bare, grassLo, grassHi, outside, ring}). */
