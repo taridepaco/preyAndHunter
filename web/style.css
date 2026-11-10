@@ -8,9 +8,9 @@
   --side: 440px;
   --gap: 22px;
   /* the world's ground (read by main.js for the GPU) and the theory line of the charts */
-  --sim-soil: #6a4a33;     /* tierra */
-  --sim-grass-lo: #5a7a3c;
-  --sim-grass-hi: #4f8f47; /* bosque */
+  --sim-soil: #4e3726;     /* tierra */
+  --sim-grass-lo: #465c3b;
+  --sim-grass-hi: #416a42; /* hierba, apagada para que resalten los animales */
   --sim-bare: #f7f2d6;
   --sim-outside: #d9cfa6;
   --c-theory: #2f7e96;
@@ -19,18 +19,18 @@
 /* night values: both blocks must carry the same values (as in system.css) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --sim-soil: #2a2119;
-    --sim-grass-lo: #2c4326;
-    --sim-grass-hi: #3b6b36;
+    --sim-soil: #17120e;
+    --sim-grass-lo: #1d3a22;
+    --sim-grass-hi: #2a6a35;
     --sim-bare: #12222b;
     --sim-outside: #0a141a;
     --c-theory: #62bcd6;
   }
 }
 :root[data-theme="dark"] {
-  --sim-soil: #2a2119;
-  --sim-grass-lo: #2c4326;
-  --sim-grass-hi: #3b6b36;
+  --sim-soil: #17120e;
+  --sim-grass-lo: #1d3a22;
+  --sim-grass-hi: #2a6a35;
   --sim-bare: #12222b;
   --sim-outside: #0a141a;
   --c-theory: #62bcd6;
