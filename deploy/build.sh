@@ -12,9 +12,8 @@ v=$(cd web && echo "$files" | xargs sha256sum | sha256sum | cut -c1-10)
 rm -rf dist
 mkdir -p "dist/v/$v"
 (cd web && echo "$files" | xargs -I{} cp --parents {} "../dist/v/$v/")
-sed -e "s#href=\"style.css\"#href=\"v/$v/style.css\"#" \
-    -e "s#src=\"main.js\"#src=\"v/$v/main.js\"#" \
-    web/index.html > dist/index.html
+# every local stylesheet and script (style.css, system.css, theme.js, main.js); URLs with ':' stay
+sed -E "s#(href|src)=\"([^\":]+\.(css|js))\"#\1=\"v/$v/\2\"#g" web/index.html > dist/index.html
 
 grep -oE '(src|href)="v/[^"]+"' dist/index.html
 echo "dist/ ready (v/$v)"

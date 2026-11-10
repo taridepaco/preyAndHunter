@@ -10,6 +10,8 @@ con lo que de verdad hace el mundo.
 | Ruta | Qué hay |
 |---|---|
 | `web/` | La aplicación. Sin dependencias ni compilación: módulos ES y shaders WGSL. |
+| `web/system.css`, `web/theme.js` | El sistema de diseño común de [taridepaco.github.io](https://taridepaco.github.io/), copiado sin cambios: no se editan aquí. |
+| `web/style.css`, `web/i18n.js` | Lo propio de Prey sobre el sistema (pantalla, deslizadores, selectores, observatorio) y los textos en español e inglés. |
 | `web/engine/` | El motor: `rules.js` (reglas compartidas), `world.js` (GPU), `reference.js` (CPU) y `shaders/`. |
 | `web/observatory/` | Series, ajustes (Lotka-Volterra, modelo con hierba, SINDy), RK4, gráficas y ecuaciones en MathML. |
 | `web/ui/` | Vista con zoom y pincel, y panel de especies. |
@@ -18,6 +20,7 @@ con lo que de verdad hace el mundo.
 | `tests/` | Pruebas con Node (`node --test`): reglas y matemáticas del observatorio. |
 | `tools/serve.py` | Servidor de desarrollo sin caché. |
 | `deploy/` | Build, unidad de systemd e instalación para el servidor de casa. |
+| `.github/workflows/pages.yml` | Publica en GitHub Pages con cada push a `main`. |
 
 ## Los mundos
 
@@ -71,6 +74,10 @@ F: encajar · +/−: zoom · clic: pincel · arrastre con botón derecho, centra
 El mundo, el tamaño y la semilla van en la URL (`#mundo=pradera&tam=512&semilla=1`): un enlace
 reproduce exactamente el mismo mundo.
 
+Arriba a la derecha están el tema (auto, claro u oscuro; el mundo tiene suelo de día y de noche) y el
+idioma (ES/EN, también con `?lang=en`). Ambos se guardan con las mismas claves que la portada, así que
+en `taridepaco.github.io` la elección vale para todas las páginas.
+
 ## Rendimiento
 
 Medido en el panel de navegador del escritorio de Claude (Chromium, WebGPU sobre D3D12) en este equipo,
@@ -95,8 +102,20 @@ Mac ARM). En Linux todavía es parcial.
 
 ## Despliegue
 
+### GitHub Pages
+
+`https://taridepaco.github.io/preyAndHunter/`. El workflow `.github/workflows/pages.yml` ejecuta
+`deploy/build.sh` y publica `dist/` con cada push a `main` (y a mano desde *Actions → Pages → Run
+workflow*). No se publica desde una rama ni desde `docs/`: la web vive en `web/` y hay que construirla.
+
+Para activarlo la primera vez: *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
+Después, relanza el workflow (o haz un push a `main`): el primer intento falla si Pages aún no estaba
+activado.
+
+### Servidor de casa
+
 Igual que GameOfLifer y Boider: servidor de casa (WSL `Ubuntu-24.04`) detrás del túnel de Cloudflare.
-**Aún no está publicado.**
+**Aún no está publicado ahí.**
 
 - subdominio previsto `prey.taridepaco.com.es` → `http://localhost:8004` (comprueba antes que el puerto
   está libre con `ss -ltn | grep ':8004 '`)

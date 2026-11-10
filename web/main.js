@@ -1,7 +1,9 @@
 /* Prey: wires the GPU world, the view, the side panel and the observatory together. */
 import { World } from './engine/world.js';
+import { applyStatic, bindLangSwitch, num, onLang, t, tx } from './i18n.js';
+import { refreshChartColors } from './observatory/charts.js';
 import { Observatory } from './observatory/observatory.js';
-import { buildSpeciesPanel, buildTools } from './ui/panel.js';
+import { buildSpeciesPanel, buildTools, fillRange } from './ui/panel.js';
 import { View } from './ui/view.js';
 
 const PRESETS = [
@@ -13,16 +15,21 @@ const SIZES = [128, 256, 512, 1024, 2048, 4096];
 const MAX_STEPS_PER_FRAME = 256;
 
 const $ = (id) => document.getElementById(id);
+const root = document.documentElement;
+const Theme = window.Theme; // theme.js, loaded in <head>
 const errorBox = $('error');
 const randomSeed = () => Math.floor(Math.random() * 1e9);
 
 function fail(msg) {
-  errorBox.textContent = msg;
+  $('error-msg').textContent = msg;
   errorBox.hidden = false;
 }
 
+/** Engine errors that a visitor can meet carry a code with a translated text. */
+const errorText = (e) => (e.code ? t(`err.${e.code}`) : e.message);
+
 function cellsLabel(n) {
-  return n >= 1e6 ? `${(n / 1e6).toLocaleString('es-ES', { maximumFractionDigits: 1 })} M` : `${Math.round(n / 1e3)} k`;
+  return n >= 1e6 ? `${num(n / 1e6, { maximumFractionDigits: 1 })} M` : `${Math.round(n / 1e3)} k`;
 }
 
 function readHash() {
@@ -34,13 +41,48 @@ function readHash() {
   };
 }
 
+/** The world's ground colours for the current theme: the --sim-* tokens of style.css. */
+function simColors() {
+  const css = getComputedStyle(root);
+  const get = (name) => css.getPropertyValue(name).trim();
+  return {
+    soil: get('--sim-soil'),
+    bare: get('--sim-bare'),
+    grassLo: get('--sim-grass-lo'),
+    grassHi: get('--sim-grass-hi'),
+    outside: get('--sim-outside'),
+    ring: get('--ink'),
+  };
+}
+
+// ---- page chrome: texts, language and theme, ready before the GPU starts -------------------
+applyStatic();
+bindLangSwitch();
+for (const r of document.querySelectorAll('input[type="range"]')) fillRange(r);
+document.addEventListener('input', (e) => { if (e.target.matches('input[type="range"]')) fillRange(e.target); });
+
+const themeBtn = $('theme-btn');
+function syncTheme() {
+  if (Theme) themeBtn.textContent = t(`theme.${Theme.mode()}`);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = getComputedStyle(root).getPropertyValue('--bg').trim();
+}
+if (Theme) {
+  themeBtn.addEventListener('click', () => Theme.cycle());
+  Theme.onChange(syncTheme);
+} else {
+  themeBtn.hidden = true;
+}
+onLang(syncTheme);
+syncTheme();
+
 async function main() {
   const canvas = $('world');
   let world;
   try {
     world = await World.create(canvas);
   } catch (e) {
-    fail(e.message);
+    fail(errorText(e));
     return;
   }
 
@@ -50,7 +92,7 @@ async function main() {
     const loaded = await Promise.all(PRESETS.map(async (p) => [p.id, await (await fetch(new URL(p.file, import.meta.url))).json()]));
     defs = Object.fromEntries(loaded);
   } catch (e) {
-    fail(`No se pudieron cargar los mundos: ${e.message}`);
+    fail(t('err.worlds', { msg: e.message }));
     return;
   }
 
@@ -67,9 +109,11 @@ async function main() {
   let speciesPanel = null;
 
   const view = new View(canvas, { onPaint: paint, onChange: () => { dirty = true; } });
+  refreshChartColors();
   const observatory = new Observatory({
     series: $('series'), phase: $('phase'), legend: $('phase-legend'), tabs: $('model-tabs'), model: $('model'),
   });
+  world.setColors(simColors());
 
   world.onStats = (live, samples) => {
     observatory.push(samples);
@@ -77,21 +121,28 @@ async function main() {
   };
   world.onLost = (info) => {
     running = false;
-    fail(`Se ha perdido el acceso a la GPU (${info.message || info.reason}). Recarga la página.`);
+    fail(t('err.lost', { why: info.message || info.reason }));
   };
 
   // ---- controls ----------------------------------------------------------
   const presetSel = $('preset');
-  for (const p of PRESETS) presetSel.add(new Option(defs[p.id].name, p.id));
+  for (const p of PRESETS) presetSel.add(new Option('', p.id));
   presetSel.addEventListener('change', () => loadPreset(presetSel.value));
 
   const sizeSel = $('size');
-  for (const s of SIZES) if (s <= world.maxSide) sizeSel.add(new Option(`${s}² (${cellsLabel(s * s)})`, s));
+  for (const s of SIZES) if (s <= world.maxSide) sizeSel.add(new Option('', s));
   sizeSel.addEventListener('change', () => changeSize(Number(sizeSel.value)));
 
   const speedSel = $('speed');
-  for (const s of SPEEDS) speedSel.add(new Option(`${s.toLocaleString('es-ES')} ticks/s`, s, false, s === rate));
+  for (const s of SPEEDS) speedSel.add(new Option('', s, false, s === rate));
   speedSel.addEventListener('change', () => { rate = Number(speedSel.value); });
+
+  function labelOptions() {
+    for (const o of presetSel.options) o.text = tx(defs[o.value].name);
+    for (const o of sizeSel.options) o.text = `${o.value}² (${cellsLabel(Number(o.value) ** 2)})`;
+    for (const o of speedSel.options) o.text = t('speed.opt', { n: num(Number(o.value)) });
+  }
+  labelOptions();
 
   const seedInput = $('seed');
   seedInput.addEventListener('change', () => restart(Number(seedInput.value) >>> 0));
@@ -101,7 +152,8 @@ async function main() {
   function setRunning(on) {
     running = on;
     pending = 0;
-    playBtn.textContent = on ? '⏸ Pausa' : '▶ Play';
+    playBtn.classList.toggle('running', on);
+    $('play-label').textContent = t(on ? 'pause' : 'play');
   }
   playBtn.addEventListener('click', () => setRunning(!running));
   $('step').addEventListener('click', stepOnce);
@@ -117,7 +169,7 @@ async function main() {
 
   // Give the keyboard back to the world after using a button or a list, so a later Space
   // doesn't press that button again (as in GameOfLifer).
-  for (const box of [document.querySelector('.bar'), document.querySelector('.side')]) {
+  for (const box of document.querySelectorAll('.topbar, .toolbar, .side')) {
     box.addEventListener('click', (e) => e.target.closest('button')?.blur());
     box.addEventListener('change', (e) => { if (e.target.matches('select')) e.target.blur(); });
   }
@@ -134,6 +186,22 @@ async function main() {
     else if (k === '-') view.zoomAt(canvas.width / 2, canvas.height / 2, 0.8);
   });
 
+  // ---- theme and language --------------------------------------------------
+  Theme?.onChange(() => {
+    world.setColors(simColors());
+    refreshChartColors();
+    observatory.restyle();
+    dirty = true;
+  });
+
+  onLang(() => {
+    labelOptions();
+    describe();
+    setRunning(running);
+    buildPanels();
+    observatory.relabel();
+  });
+
   // ---- actions -----------------------------------------------------------
   function writeHash() {
     history.replaceState(null, '', `#${new URLSearchParams({ mundo: presetId, tam: size, semilla: seed })}`);
@@ -143,8 +211,13 @@ async function main() {
     presetSel.value = presetId;
     sizeSel.value = String(size);
     seedInput.value = String(seed);
-    $('world-name').textContent = def.name;
-    $('world-desc').textContent = def.description;
+    $('world-name').textContent = tx(def.name);
+    $('world-desc').textContent = tx(def.description);
+  }
+
+  function buildPanels() {
+    speciesPanel = buildSpeciesPanel($('species'), def, world.species, { onChange: paramsChanged });
+    buildTools($('tools'), def, world.species, { onSelect: (sel) => { tool = sel; }, selected: tool?.id });
   }
 
   async function loadPreset(id, opts = {}) {
@@ -155,12 +228,12 @@ async function main() {
     try {
       await world.load(def, { size, seed });
     } catch (e) {
-      fail(e.message);
+      fail(errorText(e));
       return;
     }
     describe();
-    speciesPanel = buildSpeciesPanel($('species'), def, world.species, { onChange: paramsChanged });
-    buildTools($('tools'), def, world.species, { onSelect: (t) => { tool = t; } });
+    tool = null;
+    buildPanels();
     observatory.configure({ def, species: world.species, cells: size * size, sampleEvery: world.sampleEvery, grassOn: world.grassOn });
     view.setWorld(size, size);
     pending = 0;
@@ -174,7 +247,7 @@ async function main() {
     try {
       await world.load(def, { size, seed });
     } catch (e) {
-      alert(e.message);
+      alert(errorText(e));
       size = previous;
       await world.load(def, { size, seed });
     }
@@ -219,6 +292,7 @@ async function main() {
   let last = performance.now();
   let statT = last;
   let statTicks = 0;
+  const oneDecimal = { minimumFractionDigits: 1, maximumFractionDigits: 1 };
 
   function frame(now) {
     const dt = Math.min((now - last) / 1000, 0.25);
@@ -243,9 +317,13 @@ async function main() {
       const tps = statTicks / ((now - statT) / 1000);
       statTicks = 0;
       statT = now;
-      const z = view.zoom >= 1 ? view.zoom.toFixed(1) : `1/${(1 / view.zoom).toFixed(1)}`;
-      statsLine.textContent = `tick ${world.tick.toLocaleString('es-ES')} · ${Math.round(tps).toLocaleString('es-ES')} ticks/s · ` +
-        `${((tps * size * size) / 1e9).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Gceldas/s · zoom ${z.replace('.', ',')}`;
+      const z = view.zoom >= 1 ? num(view.zoom, oneDecimal) : `1/${num(1 / view.zoom, oneDecimal)}`;
+      statsLine.textContent = t('stats', {
+        tick: num(world.tick),
+        tps: num(Math.round(tps)),
+        g: num((tps * size * size) / 1e9, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        z,
+      });
     }
     requestAnimationFrame(frame);
   }
