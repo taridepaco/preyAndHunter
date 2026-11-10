@@ -1,0 +1,9 @@
+{
+  "name": "prey",
+  "private": true,
+  "description": "Ecosistemas vivos en la GPU: un autómata depredador-presa donde las ecuaciones de Lotka-Volterra se descubren solas.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/"
+  }
+}

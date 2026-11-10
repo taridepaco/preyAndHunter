@@ -1,0 +1,46 @@
+{
+  "id": "pradera",
+  "name": "La pradera",
+  "description": "Hierba que rebrota, conejos que la comen y zorros que cazan conejos. Cada animal gasta energía al vivir, la recupera comiendo y, cuando le sobra, deja una cría al moverse.",
+  "size": 512,
+  "grass": { "regrowTicks": 40, "minGraze": 1 },
+  "species": [
+    {
+      "id": "conejo",
+      "name": "Conejos",
+      "symbol": "c",
+      "color": "#eda100",
+      "density": 0.08,
+      "grazes": true,
+      "grazeGain": 4,
+      "metabolism": 1,
+      "reproEnergy": 12,
+      "maxEnergy": 40,
+      "move": 1,
+      "choice": "smart"
+    },
+    {
+      "id": "zorro",
+      "name": "Zorros",
+      "symbol": "z",
+      "color": "#8f84ea",
+      "density": 0.01,
+      "diet": ["conejo"],
+      "preyGain": 14,
+      "metabolism": 1,
+      "reproEnergy": 30,
+      "maxEnergy": 70,
+      "move": 1,
+      "choice": "smart"
+    }
+  ],
+  "observatory": { "prey": "conejo", "predator": "zorro", "resource": true },
+  "controls": [
+    { "grass": "regrowTicks", "label": "Rebrote de la hierba", "unit": "ticks", "min": 5, "max": 120, "step": 1 },
+    { "species": "conejo", "key": "grazeGain", "label": "Energía por hierba", "min": 1, "max": 12, "step": 1 },
+    { "species": "conejo", "key": "reproEnergy", "label": "Energía para criar", "min": 2, "max": 40, "step": 1 },
+    { "species": "zorro", "key": "preyGain", "label": "Energía por conejo", "min": 2, "max": 40, "step": 1 },
+    { "species": "zorro", "key": "reproEnergy", "label": "Energía para criar", "min": 4, "max": 70, "step": 1 },
+    { "species": "zorro", "key": "maxEnergy", "label": "Reserva máxima", "min": 10, "max": 200, "step": 1 }
+  ]
+}

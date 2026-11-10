@@ -1,0 +1,37 @@
+[Unit]
+Description=Prey (static site for prey.taridepaco.com.es)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=prey
+Group=prey
+WorkingDirectory=/opt/prey
+# Only reachable through the Cloudflare tunnel: bind to localhost
+ExecStart=/usr/bin/python3 -m http.server 8004 --bind 127.0.0.1 --directory /opt/prey
+Restart=always
+RestartSec=5
+
+# Isolation. Static, read-only site: no ReadWritePaths.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+# empty /mnt (no Windows drives) except DNS: in WSL /etc/resolv.conf points to /mnt/wsl/resolv.conf
+TemporaryFileSystem=/mnt:ro
+BindReadOnlyPaths=/mnt/wsl/resolv.conf
+InaccessiblePaths=/init
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX AF_NETLINK
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target
