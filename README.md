@@ -17,10 +17,10 @@ con lo que de verdad hace el mundo.
 | `web/ui/` | Vista con zoom y pincel, y panel de especies. |
 | `web/worlds/` | Los mundos: `pradera.json` y `lotka-rejilla.json`. |
 | `web/tests/` | Pruebas en el navegador: la GPU contra el motor de referencia, bit a bit. |
-| `tests/` | Pruebas con Node (`node --test`): reglas y matemáticas del observatorio. |
+| `tests/` | Pruebas con Node (`npm test`): reglas y matemáticas del observatorio. |
 | `tools/serve.py` | Servidor de desarrollo sin caché. |
-| `deploy/` | Build, unidad de systemd e instalación para el servidor de casa. |
-| `.github/workflows/pages.yml` | Publica en GitHub Pages con cada push a `main`. |
+| `deploy/` | Construcción de `dist/` (lo que se publica), tests previos e instalación en el servidor de casa. Ver [DEPLOY.md](DEPLOY.md). |
+| `.github/workflows/pages.yml` | Publica `dist/` en GitHub Pages con cada push a `main`. |
 
 ## Los mundos
 
@@ -94,7 +94,7 @@ con la pradera y sin dibujar:
 
 ```bash
 python3 tools/serve.py 8091     # http://localhost:8091 (pruebas en /tests/)
-node --test tests/              # reglas y matemáticas, sin dependencias
+npm test                        # reglas y matemáticas, sin dependencias
 ```
 
 Hace falta un navegador con WebGPU: Chrome o Edge, Safari 26, o Firefox 141+ en Windows (145+ en
@@ -102,37 +102,9 @@ Mac ARM). En Linux todavía es parcial.
 
 ## Despliegue
 
-### GitHub Pages
-
-`https://taridepaco.github.io/preyAndHunter/`. El workflow `.github/workflows/pages.yml` ejecuta
-`deploy/build.sh` y publica `dist/` con cada push a `main` (y a mano desde *Actions → Pages → Run
-workflow*). No se publica desde una rama ni desde `docs/`: la web vive en `web/` y hay que construirla.
-
-Para activarlo la primera vez: *Settings → Pages → Build and deployment → Source: **GitHub Actions***.
-Después, relanza el workflow (o haz un push a `main`): el primer intento falla si Pages aún no estaba
-activado.
-
-### Servidor de casa
-
-Igual que GameOfLifer y Boider: servidor de casa (WSL `Ubuntu-24.04`) detrás del túnel de Cloudflare.
-**Aún no está publicado ahí.**
-
-- subdominio previsto `prey.taridepaco.com.es` → `http://localhost:8004` (comprueba antes que el puerto
-  está libre con `ss -ltn | grep ':8004 '`)
-- unidad de systemd `prey.service`, usuario `prey`, ficheros en `/opt/prey` (solo lectura, de root)
-
-```bash
-deploy/build.sh && sudo deploy/install.sh
-```
-
-`build.sh` mete todo salvo `index.html` en `v/<hash>/`, un directorio con el nombre del contenido: los
-módulos ES se importan entre sí, así que un `?v=` en `index.html` no bastaría contra la caché de
-Cloudflare.
-
-Primera vez, además de `install.sh`: añade la entrada en `/etc/cloudflared/config.yml` antes de la regla
-404 (`hostname: prey.taridepaco.com.es`, `service: http://localhost:8004`), valida con
-`cloudflared tunnel ingress validate`, crea el DNS con `cloudflared tunnel route dns <túnel>
-prey.taridepaco.com.es` y reinicia `cloudflared`.
+`deploy/build.sh` construye `web/` en `dist/`, y ese mismo `dist/` se publica en todos los sitios:
+GitHub Pages (`.github/workflows/pages.yml`, con cada push a `main` y solo si pasan los tests) y el
+servidor de casa (`deploy/install.sh`). Detalles en [DEPLOY.md](DEPLOY.md).
 
 ## Hoja de ruta
 
