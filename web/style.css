@@ -58,6 +58,8 @@ body {
 }
 .topbar .back { text-underline-offset: 4px; }
 .topbar h1 { font-size: 1.25rem; }
+/* el título lleva al repositorio: mismo aspecto, cursor de mano */
+.topbar h1 a { text-decoration: none; cursor: pointer; }
 .topbar .tag { margin-right: auto; }
 /* con el dedo (un móvil en horizontal pasa de 720px) los enlaces miden 36px de alto, como los
    botones de al lado; la fila no cambia (como en Boider) */
