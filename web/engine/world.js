@@ -13,6 +13,7 @@ const TICK_STRIDE = 256; // dynamic uniform offsets must be 256-byte aligned
 export const MAX_TICKS_PER_STEP = 512;
 const STATS_BYTES = STATS.LEN * 4;
 const MAX_IN_FLIGHT = 3;
+export const MIN_SIDE = WG; // smallest world side
 
 const rgb = (hex) => {
   const n = parseInt(hex.replace('#', ''), 16);
@@ -136,16 +137,22 @@ export class World {
     });
   }
 
+  /** Side of the largest square world (a power of two) whose buffers this GPU can bind. */
   get maxSide() {
     const lim = Math.min(this.device.limits.maxStorageBufferBindingSize, this.device.limits.maxBufferSize);
     return 2 ** Math.floor(Math.log2(Math.sqrt(lim / 4)));
   }
 
-  /** Allocates a w×h world (powers of two, at least WG). Throws a readable error without GPU memory. */
+  /**
+   * Allocates a w×h world: any whole sizes from MIN_SIDE up, with no more cells than the largest
+   * square. Throws a readable error without GPU memory.
+   */
   async resize(w, h) {
     if (w === this.width && h === this.height) return;
-    if ((w & (w - 1)) || (h & (h - 1)) || w < WG || h < WG) throw new Error('El tamaño debe ser una potencia de dos.');
-    if (Math.max(w, h) > this.maxSide) throw new Error(`El máximo de esta GPU es ${this.maxSide}×${this.maxSide}.`);
+    if (!Number.isInteger(w) || !Number.isInteger(h) || w < MIN_SIDE || h < MIN_SIDE) {
+      throw new Error(`El mundo debe medir al menos ${MIN_SIDE}×${MIN_SIDE} celdas.`);
+    }
+    if (w * h > this.maxSide ** 2) throw new Error(`El máximo de esta GPU es ${this.maxSide}×${this.maxSide}.`);
     const d = this.device;
     const U = GPUBufferUsage;
     this._free();
@@ -189,9 +196,9 @@ export class World {
     this.renderBG = [0, 1].map((p) => bind(this.renderLayout, [this.viewBuf, this.cells[p], this.grass]));
   }
 
-  /** Loads a world description (worlds/*.json) with the given side and seed, and seeds it. */
-  async load(def, { size, seed }) {
-    await this.resize(size, size);
+  /** Loads a world description (worlds/*.json) with the given width, height and seed, and seeds it. */
+  async load(def, { width, height, seed }) {
+    await this.resize(width, height);
     this.def = def;
     this.update(def, seed);
     this.reseed();
@@ -230,7 +237,7 @@ export class World {
     const pass = enc.beginComputePass();
     pass.setPipeline(this.pSeed);
     pass.setBindGroup(0, this.toolsBG[this.cur]);
-    pass.dispatchWorkgroups(this.width / WG, this.height / WG);
+    pass.dispatchWorkgroups(Math.ceil(this.width / WG), Math.ceil(this.height / WG));
     pass.end();
     this.device.queue.submit([enc.finish()]);
     this.tick = 0;
@@ -262,8 +269,9 @@ export class World {
 
     const enc = d.createCommandEncoder();
     const pass = enc.beginComputePass();
-    const gx = this.width / WG;
-    const gy = this.height / WG;
+    // the shaders skip the invocations past the edge when a side is not a multiple of WG
+    const gx = Math.ceil(this.width / WG);
+    const gy = Math.ceil(this.height / WG);
     for (let i = 0; i < n; i++) {
       pass.setBindGroup(0, this.simBG[this.cur]);
       pass.setBindGroup(1, this.tickBG, [i * TICK_STRIDE]);
@@ -337,6 +345,21 @@ export class World {
     pass.dispatchWorkgroups(groups, groups);
     pass.end();
     d.queue.submit([enc.finish()]);
+  }
+
+  /** Fills the canvas with the colour around the world: what it shows until the world exists. */
+  clear() {
+    const [r, g, b] = this.colors.outside;
+    const enc = this.device.createCommandEncoder();
+    enc.beginRenderPass({
+      colorAttachments: [{
+        view: this.ctx.getCurrentTexture().createView(),
+        loadOp: 'clear',
+        clearValue: { r, g, b, a: 1 },
+        storeOp: 'store',
+      }],
+    }).end();
+    this.device.queue.submit([enc.finish()]);
   }
 
   /** Draws the world. view = {cx, cy, zoom}: cell at the canvas centre and pixels per cell. */

@@ -38,12 +38,12 @@ export const claimDir = (w) => (w >>> 4) & 7;
 
 /*
  * Directions: 0 1 2 / 3 · 4 / 5 6 7. The opposite of d is 7 - d.
- * Worlds are toroidal and their sides are powers of two, so wrapping is a mask.
+ * Worlds are toroidal, of any width and height (the "screen" world takes the canvas's shape).
  */
 export function neighbor(x, y, d, w, h) {
   const k = d >= 4 ? d + 1 : d;
-  const nx = (x + (k % 3) + w - 1) & (w - 1);
-  const ny = (y + ((k / 3) | 0) + h - 1) & (h - 1);
+  const nx = (x + (k % 3) + w - 1) % w;
+  const ny = (y + ((k / 3) | 0) + h - 1) % h;
   return ny * w + nx;
 }
 

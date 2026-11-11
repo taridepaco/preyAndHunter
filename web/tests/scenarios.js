@@ -113,6 +113,23 @@ export const scenarios = [
     },
   },
   {
+    name: 'En un mundo de 23×17 (no cuadrado ni potencia de dos), un zorro caza a través de la esquina del toro',
+    width: 23,
+    height: 17,
+    def: world('conejo', 'zorro'),
+    ticks: 1,
+    setup({ cells }) {
+      cells[at(23, 0, 0)] = packCell(FOX, 20, 0);
+      cells[at(23, 22, 16)] = packCell(RABBIT, 10, 0);
+    },
+    check({ cells, stats }) {
+      expect(count(cells, RABBIT) === 0, 'el conejo sigue vivo');
+      expect(cellSpecies(cells[at(23, 22, 16)]) === FOX, 'el zorro no está en la esquina opuesta');
+      expect(cells[at(23, 0, 0)] === 0, 'la celda de origen del zorro no ha quedado vacía');
+      expect(stats[STATS.PRED + FOX * MAX_SPECIES + RABBIT] === 1, 'la caza no se ha contado');
+    },
+  },
+  {
     name: 'Balance: animales(t) = animales(t−1) + nacimientos − muertes − cazados',
     size: 64,
     seed: 7,
@@ -148,22 +165,30 @@ export async function parityWorlds() {
     { name: 'La pradera, 64×64', size: 64, seed: 2026, def: await load('pradera'), ticks: 600, sampleEvery: 5 },
     { name: 'Lotka en rejilla, 64×64', size: 64, seed: 99, def: await load('lotka-rejilla'), ticks: 600, sampleEvery: 5 },
     { name: 'La pradera, 128×128', size: 128, seed: 5, def: await load('pradera'), ticks: 300, sampleEvery: 3 },
+    // the "screen" world takes the canvas's shape: any width and height, not multiples of WG
+    { name: 'La pradera, 100×61', width: 100, height: 61, seed: 11, def: await load('pradera'), ticks: 400, sampleEvery: 5 },
+    { name: 'Lotka en rejilla, 37×90', width: 37, height: 90, seed: 3, def: await load('lotka-rejilla'), ticks: 400, sampleEvery: 4 },
   ];
 }
 
-function blank(size) {
-  return { cells: new Uint32Array(size * size), grass: new Uint32Array(size * size) };
+/** A scenario's world: width × height, or size × size. */
+const dims = (scn) => [scn.width ?? scn.size, scn.height ?? scn.size];
+
+function blank(scn) {
+  const [w, h] = dims(scn);
+  return { cells: new Uint32Array(w * h), grass: new Uint32Array(w * h) };
 }
 
 /** Runs a scenario on the CPU reference. */
 export function runOnReference(scn) {
-  const r = new Reference(scn.size, scn.size);
-  const { params, table } = compileWorld(scn.def, { width: scn.size, height: scn.size, seed: scn.seed ?? 1 });
+  const [width, height] = dims(scn);
+  const r = new Reference(width, height);
+  const { params, table } = compileWorld(scn.def, { width, height, seed: scn.seed ?? 1 });
   r.setParams(params);
   r.setSpecies(table);
   r.seed();
   if (scn.setup) {
-    const st = blank(scn.size);
+    const st = blank(scn);
     scn.setup(st);
     r.cells.set(st.cells);
     r.grass.set(st.grass);
@@ -178,12 +203,12 @@ export function runOnReference(scn) {
  * exercise the per-tick uniforms and sample slots.
  */
 export async function runOnWorld(world, scn, batches = [512]) {
-  await world.resize(scn.size, scn.size);
+  await world.resize(...dims(scn));
   world.sampleEvery = scn.sampleEvery ?? 5;
   world.update(scn.def, scn.seed ?? 1);
   world.reseed();
   if (scn.setup) {
-    const st = blank(scn.size);
+    const st = blank(scn);
     scn.setup(st);
     world.writeState(st.cells, st.grass);
   }
