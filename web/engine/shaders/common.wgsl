@@ -46,10 +46,14 @@ fn pack_claim(act: u32, dir: u32) -> u32 {
   return 1u | (act << 1u) | (dir << 4u);
 }
 
-// Directions 0 1 2 / 3 · 4 / 5 6 7; the opposite of d is 7 - d. Toroidal, sides are powers of two.
+// Directions 0 1 2 / 3 · 4 / 5 6 7; the opposite of d is 7 - d. Toroidal, of any width and height.
 fn neighbor(x: u32, y: u32, d: u32, w: u32, h: u32) -> u32 {
   let k = select(d, d + 1u, d >= 4u);
-  let nx = (x + (k % 3u) + w - 1u) & (w - 1u);
-  let ny = (y + (k / 3u) + h - 1u) & (h - 1u);
-  return ny * w + nx;
+  return wrap_step(y, k / 3u, h) * w + wrap_step(x, k % 3u, w);
+}
+
+// v + o - 1 (o is 0, 1 or 2) wrapped into [0, n): the same as rules.js's modulo, without a division.
+fn wrap_step(v: u32, o: u32, n: u32) -> u32 {
+  let s = v + o;
+  return select(select(s - 1u, 0u, s > n), n - 1u, s == 0u);
 }

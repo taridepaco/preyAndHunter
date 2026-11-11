@@ -11,7 +11,7 @@ con lo que de verdad hace el mundo.
 |---|---|
 | `web/` | La aplicación. Sin dependencias ni compilación: módulos ES y shaders WGSL. |
 | `web/system.css`, `web/theme.js` | El sistema de diseño común de [taridepaco.github.io](https://taridepaco.github.io/), copiado sin cambios: no se editan aquí. |
-| `web/style.css`, `web/i18n.js` | Lo propio de Prey sobre el sistema (pantalla, deslizadores, selectores, observatorio) y los textos en español e inglés. |
+| `web/style.css`, `web/i18n.js` | La página de simulador común (la de [GameOfLifer](https://github.com/taridepaco/GameOfLifer): cabecera, panel plegable, pantalla, barra de mandos del móvil) más lo propio de Prey (suelo del mundo, especies, pincel, observatorio), y los textos en español e inglés. |
 | `web/engine/` | El motor: `rules.js` (reglas compartidas), `world.js` (GPU), `reference.js` (CPU) y `shaders/`. |
 | `web/observatory/` | Series, ajustes (Lotka-Volterra, modelo con hierba, SINDy), RK4, gráficas y ecuaciones en MathML. |
 | `web/ui/` | Vista con zoom y pincel, y panel de especies. |
@@ -49,6 +49,9 @@ Todo lo que decide es entero (energía, edad, hierba y probabilidades en coma fi
 un hash de (celda, tick, semilla): la misma semilla da el mismo mundo en cualquier GPU, y la GPU coincide
 bit a bit con el motor de referencia en JS.
 
+El mundo es un toro de cualquier ancho y alto (desde 16 celdas por lado), así que puede tomar la forma de la
+pantalla. En los mundos cuadrados de potencia de dos da exactamente lo mismo que antes, celda a celda.
+
 ## El observatorio
 
 - Poblaciones en el tiempo y retrato de fase (presas frente a depredadores) con el equilibrio y lo que
@@ -68,15 +71,26 @@ de McKane y Newman, 2005).
 
 ## Controles
 
+La página es la de simulador del sistema común, como en GameOfLifer y Boider: en el ordenador, el panel
+de controles a la izquierda (plegable) y la pantalla del mundo en el resto, con una línea de estado debajo.
+En el móvil manda la pantalla: debajo, una barra con Play, Paso y Reiniciar, y el panel se abre como una
+hoja sobre la parte baja de la pantalla, sin cambiar el tamaño del lienzo. La simulación arranca en marcha.
+
 Espacio: reproducir o pausar · N: un tick · R: reiniciar con la misma semilla · S: semilla nueva ·
 F: encajar · +/−: zoom · clic: pincel · arrastre con botón derecho, central o Mayús: mover · rueda: zoom.
 
-El mundo, el tamaño y la semilla van en la URL (`#mundo=pradera&tam=512&semilla=1`): un enlace
-reproduce exactamente el mismo mundo.
+El tamaño por defecto es **Pantalla**: el mundo toma la forma del lienzo, con celdas de 2 o 3 píxeles
+reales (2 en el ordenador), y se dibuja con un número entero de píxeles por celda, alineado con los
+píxeles, para que no aparezcan tramas. Los tamaños cuadrados (128² a 4096²) siguen en la lista, y al
+cambiar de mundo se conserva el tamaño elegido.
 
-Arriba a la derecha están el tema (auto, claro u oscuro; el mundo tiene suelo de día y de noche) y el
-idioma (ES/EN, también con `?lang=en`). Ambos se guardan con las mismas claves que la portada, así que
-en `taridepaco.github.io` la elección vale para todas las páginas.
+El mundo, el tamaño y la semilla van en la URL (`#mundo=pradera&tam=512&semilla=1`, o `tam=778x473` para
+un mundo con la forma de la pantalla): un enlace reproduce exactamente el mismo mundo.
+
+El tema (auto, claro u oscuro; el mundo tiene suelo de día y de noche) y el idioma (ES/EN, también con
+`?lang=en`) están arriba a la derecha; en el móvil el tema pasa al panel, en «Aspecto». Ambos se guardan
+con las mismas claves que la portada, así que en `taridepaco.github.io` la elección vale para todas las
+páginas.
 
 ## Rendimiento
 

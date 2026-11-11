@@ -302,7 +302,8 @@ export class Observatory {
     }
     let html = '';
     if (this.tab === 'sindy') {
-      html += `<label class="control threshold"><span>${t('o.threshold')}</span><input type="range" min="0" max="0.5" step="0.01" value="${this.threshold}"><output>${dec(this.threshold)}</output></label>`;
+      html += `<div class="slider threshold"><label for="sindy-threshold">${t('o.threshold')}</label><output for="sindy-threshold">${dec(this.threshold)}</output>` +
+        `<input id="sindy-threshold" type="range" min="0" max="0.5" step="0.01" value="${this.threshold}"></div>`;
     }
     html += `<div class="eqs">${model.equations.map((e) => equation(e.target, e.terms, { log: e.log })).join('')}</div>`;
     const facts = [];
@@ -328,7 +329,7 @@ export class Observatory {
       fillRange(slider);
       slider.addEventListener('input', () => {
         this.threshold = Number(slider.value);
-        slider.nextElementSibling.textContent = dec(this.threshold);
+        el.querySelector('.threshold output').textContent = dec(this.threshold);
         store('prey.threshold', String(this.threshold));
       });
       slider.addEventListener('change', () => {

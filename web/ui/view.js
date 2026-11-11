@@ -25,7 +25,10 @@ export class View {
     this.fit();
   }
 
-  /** Matches the backing store to the CSS size. Returns true if it changed. */
+  /**
+   * Matches the backing store to the CSS size in device pixels; checked every frame, so folding
+   * the panel or turning the phone redraws. Returns true if it changed.
+   */
   resize() {
     const dpr = window.devicePixelRatio || 1;
     const w = Math.max(1, Math.round(this.canvas.clientWidth * dpr));
@@ -37,11 +40,31 @@ export class View {
     return true;
   }
 
+  /**
+   * Shows the whole world (key F), as GameOfLifer's fit(). When it fits at one device pixel per
+   * cell or more, the zoom is a whole number of pixels and the world starts on a pixel boundary:
+   * cells are exact squares, with no moiré (a scale near but not equal to 1 showed a pattern of
+   * blocks) and no rows of uneven width. That is always the case for the "screen" world. A smaller
+   * world keeps the whole-pixel zoom only if it still fills at least 3/4 of the canvas; otherwise,
+   * and for worlds larger than the canvas, it is fitted at 98% at any scale.
+   */
   fit(notify = true) {
     this.autoFit = true;
-    this.cx = this.width / 2;
-    this.cy = this.height / 2;
-    this.zoom = Math.min(this.canvas.width / this.width, this.canvas.height / this.height) * 0.98;
+    this.resize();
+    const { width: cw, height: ch } = this.canvas;
+    const z = Math.min(cw / this.width, ch / this.height);
+    const whole = Math.floor(z);
+    if (whole >= 1 && whole / z >= 0.75) {
+      const offX = Math.floor((cw - this.width * whole) / 2);
+      const offY = Math.floor((ch - this.height * whole) / 2);
+      this.zoom = whole;
+      this.cx = (cw / 2 - offX) / whole;
+      this.cy = (ch / 2 - offY) / whole;
+    } else {
+      this.zoom = z * 0.98;
+      this.cx = this.width / 2;
+      this.cy = this.height / 2;
+    }
     if (notify) this.onChange();
   }
 

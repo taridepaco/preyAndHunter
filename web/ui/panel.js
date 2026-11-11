@@ -20,6 +20,8 @@ function el(tag, attrs = {}, ...children) {
   return e;
 }
 
+let sliders = 0; // ids that tie each slider's label and value to its input
+
 /** Tells the slider's track how far to fill (style.css draws it from --p, 0 to 1). */
 export function fillRange(input) {
   const min = Number(input.min || 0);
@@ -31,8 +33,9 @@ export function fillRange(input) {
 function slider(control, value, onInput) {
   const digits = decimals(control.step);
   const show = (v) => num(Number(v), { minimumFractionDigits: digits, maximumFractionDigits: digits });
-  const input = el('input', { type: 'range', min: control.min, max: control.max, step: control.step, value });
-  const out = el('output', {}, show(value));
+  const id = `slider-${++sliders}`;
+  const input = el('input', { type: 'range', id, min: control.min, max: control.max, step: control.step, value });
+  const out = el('output', { for: id }, show(value));
   fillRange(input);
   input.addEventListener('input', () => {
     out.textContent = show(input.value);
@@ -40,7 +43,8 @@ function slider(control, value, onInput) {
   });
   const name = tx(control.label);
   const label = control.unit ? `${name} (${control.unit})` : name;
-  return el('label', { class: 'control' }, el('span', {}, label), input, out);
+  // the system's slider: name and value on top, the track below (as in GameOfLifer and Boider)
+  return el('div', { class: 'slider' }, el('label', { for: id }, label), out, input);
 }
 
 function card(swatch, name, count) {

@@ -46,8 +46,10 @@ fn tool_paint(@builtin(global_invocation_id) gid: vec3<u32>) {
   let dx = i32(gid.x) - i32(B.radius);
   let dy = i32(gid.y) - i32(B.radius);
   if (dx * dx + dy * dy > i32(B.radius * B.radius)) { return; }
-  let x = u32(i32(B.cx) + dx + i32(P.width)) & (P.width - 1u);
-  let y = u32(i32(B.cy) + dy + i32(P.height)) & (P.height - 1u);
+  let ww = i32(P.width);
+  let wh = i32(P.height);
+  let x = u32(((i32(B.cx) + dx) % ww + ww) % ww);
+  let y = u32(((i32(B.cy) + dy) % wh + wh) % wh);
   let c = y * P.width + x;
   let h = pcg3d(vec3<u32>(c, B.salt, P.seed ^ SALT_PAINT));
   if (B.tool == TOOL_ANIMAL) {

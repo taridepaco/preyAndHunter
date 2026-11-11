@@ -19,7 +19,6 @@ import {
 
 export class Reference {
   constructor(width, height) {
-    if ((width & (width - 1)) || (height & (height - 1))) throw new Error('Width and height must be powers of two.');
     this.width = width;
     this.height = height;
     this.n = width * height;

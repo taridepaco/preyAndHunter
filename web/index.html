@@ -32,85 +32,122 @@
 </head>
 <body>
   <header class="topbar">
-    <a class="util back" href="https://taridepaco.github.io/">← taridepaco</a>
-    <div class="title">
-      <h1>Prey</h1>
-      <span class="tag">WebGPU</span>
-      <span class="util muted" data-i18n="tagline">ecosistemas en la GPU</span>
-    </div>
-    <nav class="util" aria-label="Enlaces / Links">
-      <a href="https://github.com/taridepaco/preyAndHunter" target="_blank" rel="noopener" data-i18n="nav.code">Código</a>
-    </nav>
-    <button class="chip" type="button" id="theme-btn">Tema: auto</button>
+    <a class="util back" href="https://taridepaco.github.io/"><span class="back-arrow" aria-hidden="true">←</span><span class="back-text"> taridepaco</span></a>
+    <h1>Prey</h1>
+    <span class="tag" data-i18n="kind">Simulador</span>
+    <button class="chip theme-btn" type="button">Tema: auto</button>
     <div class="lang-switch" role="group" aria-label="Language / Idioma">
       <button type="button" data-lang="es" lang="es" aria-label="Español" aria-pressed="true">ES</button>
       <button type="button" data-lang="en" lang="en" aria-label="English" aria-pressed="false">EN</button>
     </div>
   </header>
 
-  <div class="toolbar" role="group" data-i18n-aria="controls">
-    <div class="group">
-      <button class="btn play" id="play" type="button" data-i18n-title="play.title"><span class="ico" aria-hidden="true"></span><span id="play-label">Play</span></button>
-      <button class="btn ghost" id="step" type="button" data-i18n="step" data-i18n-title="step.title">Paso</button>
-      <button class="btn ghost" id="reset" type="button" data-i18n="reset" data-i18n-title="reset.title">Reiniciar</button>
-      <button class="btn ghost" id="fit" type="button" data-i18n="fit" data-i18n-title="fit.title">Encajar</button>
-    </div>
-    <div class="group">
-      <label><span class="util" data-i18n="speed">Velocidad</span><select id="speed"></select></label>
-    </div>
-  </div>
-
   <div class="app">
-    <main class="stage">
-      <div class="screen">
-        <canvas id="world"></canvas>
-        <p id="stats" class="hud util" aria-live="off"></p>
-        <p class="hint util" data-i18n="hint">Clic: pincel · Arrastre con botón derecho, central o Mayús: mover · Rueda: zoom</p>
-        <div id="error" class="error" hidden>
-          <div class="card">
-            <h2 data-i18n="err.title">No se puede simular</h2>
-            <p id="error-msg"></p>
+    <details id="panel" open>
+      <summary><span class="util" data-i18n="panel">Controles</span></summary>
+      <script>
+        // phones and low screens (landscape phones) start with the panel folded, before the first paint
+        if (window.matchMedia && matchMedia("(max-width: 720px), (max-height: 500px)").matches) document.getElementById("panel").open = false;
+      </script>
+      <div id="controls">
+        <p class="pitch" data-i18n="pitch">Ecosistemas vivos en la GPU de tu navegador: hierba, conejos y zorros en millones de celdas, y un observatorio que descubre en directo las ecuaciones de sus poblaciones.</p>
+
+        <fieldset>
+          <legend data-i18n="g.run">Simulación</legend>
+          <div class="buttons">
+            <button class="btn wide play desk" type="button" data-act="play" data-i18n-title="play.title" title="Reproducir o pausar (espacio)"><span data-i18n="play">Play</span></button>
+            <button class="btn ghost desk" type="button" data-act="step" data-i18n="step" data-i18n-title="step.title" title="Un tick (N)">Paso</button>
+            <button class="btn ghost m-wide" type="button" data-act="fit" data-i18n="fit" data-i18n-title="fit.title" title="Ver el mundo entero (F)">Encajar</button>
           </div>
+          <div class="field">
+            <label for="speed" data-i18n="speed">Velocidad</label>
+            <span class="select"><select id="speed"></select></span>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend id="world-label" data-i18n="world">Mundo</legend>
+          <span class="select"><select id="preset" aria-labelledby="world-label"></select></span>
+          <p id="world-desc" class="hint"></p>
+          <div class="field">
+            <label for="size" data-i18n="size">Tamaño</label>
+            <span class="select"><select id="size"></select></span>
+          </div>
+          <div class="field">
+            <label for="seed" data-i18n="seed">Semilla</label>
+            <input id="seed" type="number" min="0" step="1">
+          </div>
+          <div class="buttons">
+            <button class="btn ghost desk" type="button" data-act="reset" data-i18n="reset" data-i18n-title="reset.title" title="Volver a empezar con la misma semilla (R)">Reiniciar</button>
+            <button class="btn ghost m-wide" type="button" data-act="seed" data-i18n="newSeed" data-i18n-title="newSeed.title" title="Semilla nueva (S)">Nueva</button>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="species">Especies</legend>
+          <p class="hint" data-i18n="species.note">Los cambios se aplican en vivo</p>
+          <div id="species" class="species"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="brush">Pincel</legend>
+          <div id="tools" class="tools" role="group" data-i18n-aria="brush.tools"></div>
+          <div class="slider">
+            <label for="brush-radius" data-i18n="brush.radius">Radio</label>
+            <output id="brush-radius-out" for="brush-radius">12</output>
+            <input id="brush-radius" type="range" min="1" max="64" step="1" value="12">
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend data-i18n="obs">Observatorio</legend>
+          <div id="series-wrap" class="chart"><canvas id="series" role="img" data-i18n-aria="chart.series"></canvas></div>
+          <div id="phase-wrap" class="chart"><canvas id="phase" role="img" data-i18n-aria="chart.phase"></canvas></div>
+          <div id="phase-legend" class="legend util"></div>
+          <div>
+            <div id="model-tabs" class="tabs" role="tablist" data-i18n-aria="models"></div>
+            <div id="model" class="model" role="tabpanel"></div>
+          </div>
+        </fieldset>
+
+        <fieldset class="m-only">
+          <legend data-i18n="g.look">Aspecto</legend>
+          <div class="row"><button class="chip theme-btn" type="button">Tema: auto</button></div>
+        </fieldset>
+
+        <fieldset class="help">
+          <legend data-i18n="g.help">Manejo</legend>
+          <dl class="keys">
+            <dt><kbd data-i18n="k.click">Clic</kbd></dt><dd data-i18n="h.click">pintar con el pincel</dd>
+            <dt><kbd data-i18n="k.pan">Mayús + arrastrar</kbd></dt><dd data-i18n="h.pan">mover (también con el botón derecho o el central)</dd>
+            <dt><kbd data-i18n="k.wheel">Rueda</kbd> <kbd>+</kbd> <kbd>−</kbd></dt><dd>zoom</dd>
+            <dt><kbd data-i18n="k.space">Espacio</kbd></dt><dd data-i18n="h.play">play / pausa</dd>
+            <dt><kbd>N</kbd></dt><dd data-i18n="h.step">un tick</dd>
+            <dt><kbd>R</kbd></dt><dd data-i18n="h.reset">reiniciar con la misma semilla</dd>
+            <dt><kbd>S</kbd></dt><dd data-i18n="h.seed">semilla nueva</dd>
+            <dt><kbd>F</kbd></dt><dd data-i18n="h.fit">encajar el mundo</dd>
+          </dl>
+          <p class="hint"><a href="https://github.com/taridepaco/preyAndHunter" target="_blank" rel="noopener" data-i18n="nav.code">Código en GitHub</a></p>
+        </fieldset>
+      </div>
+    </details>
+
+    <div class="deck" role="group" data-i18n-aria="deck" aria-label="Mandos principales">
+      <button class="btn play" type="button" data-act="play" data-i18n-title="play.title" title="Reproducir o pausar (espacio)"><span data-i18n="play">Play</span></button>
+      <button class="btn ghost" type="button" data-act="step" data-i18n="step" data-i18n-title="step.title" title="Un tick (N)">Paso</button>
+      <button class="btn ghost" type="button" data-act="reset" data-i18n="reset" data-i18n-title="reset.title" title="Volver a empezar con la misma semilla (R)">Reiniciar</button>
+    </div>
+
+    <main class="screen">
+      <canvas id="world" role="img" data-i18n-aria="board"></canvas>
+      <div id="stats" class="status" aria-live="off">&nbsp;</div>
+      <div id="error" class="error" role="alert" hidden>
+        <div class="card">
+          <h2 data-i18n="err.title">No se puede simular</h2>
+          <p id="error-msg"></p>
         </div>
       </div>
     </main>
-
-    <aside class="side">
-      <section class="card">
-        <div class="row"><span class="tag" data-i18n="world">Mundo</span></div>
-        <h2 id="world-name">—</h2>
-        <p id="world-desc" class="desc"></p>
-        <div class="fields">
-          <label><span class="util" data-i18n="world">Mundo</span><select id="preset"></select></label>
-          <label><span class="util" data-i18n="size">Tamaño</span><select id="size"></select></label>
-          <label><span class="util" data-i18n="seed">Semilla</span><input id="seed" type="number" min="0" step="1"></label>
-          <button class="btn ghost" id="new-seed" type="button" data-i18n="newSeed" data-i18n-title="newSeed.title">Nueva</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2 data-i18n="species">Especies</h2>
-        <p class="util muted" data-i18n="species.note">Los cambios se aplican en vivo</p>
-        <div id="species" class="species"></div>
-      </section>
-
-      <section class="card">
-        <h2 data-i18n="brush">Pincel</h2>
-        <div id="tools" class="tools" role="group" data-i18n-aria="brush.tools"></div>
-        <label class="control"><span data-i18n="brush.radius">Radio</span><input id="brush-radius" type="range" min="1" max="64" step="1" value="12"><output id="brush-radius-out">12</output></label>
-      </section>
-
-      <section class="card">
-        <h2 data-i18n="obs">Observatorio</h2>
-        <div id="series-wrap" class="chart"><canvas id="series" role="img" data-i18n-aria="chart.series"></canvas></div>
-        <div id="phase-wrap" class="chart"><canvas id="phase" role="img" data-i18n-aria="chart.phase"></canvas></div>
-        <div id="phase-legend" class="legend util"></div>
-        <div>
-          <div id="model-tabs" class="tabs" role="tablist" data-i18n-aria="models"></div>
-          <div id="model" class="model" role="tabpanel"></div>
-        </div>
-      </section>
-    </aside>
   </div>
 
   <script type="module" src="main.js"></script>

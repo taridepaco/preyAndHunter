@@ -57,29 +57,31 @@ async function main() {
     });
   }
 
-  await check('El pincel rellena exactamente un círculo (también a través del borde del toro) y Borrar lo vacía', async () => {
-    const size = 64;
-    await world.resize(size, size);
-    world.update({ grass: { regrowTicks: 40 }, species: [{ id: 'conejo', color: '#eda100', metabolism: 1, reproEnergy: 12, maxEnergy: 40, move: 1 }] }, 1);
-    world.reseed();
-    const disc = (cx, cy, r) => {
-      const inside = new Set();
-      for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
-        if (dx * dx + dy * dy <= r * r) inside.add((((cy + dy) & (size - 1)) * size) + ((cx + dx) & (size - 1)));
+  await check('El pincel rellena exactamente un círculo (también a través del borde del toro, en 64×64 y en 50×19) y Borrar lo vacía', async () => {
+    for (const [W, H] of [[64, 64], [50, 19]]) {
+      await world.resize(W, H);
+      world.update({ grass: { regrowTicks: 40 }, species: [{ id: 'conejo', color: '#eda100', metabolism: 1, reproEnergy: 12, maxEnergy: 40, move: 1 }] }, 1);
+      world.reseed();
+      const wrap = (v, n) => ((v % n) + n) % n;
+      const disc = (cx, cy, r) => {
+        const inside = new Set();
+        for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+          if (dx * dx + dy * dy <= r * r) inside.add(wrap(cy + dy, H) * W + wrap(cx + dx, W));
+        }
+        return inside;
+      };
+      for (const [cx, cy, r] of [[20, 10, 6], [1, 1, 3], [W - 2, H - 1, 4]]) {
+        world.writeState(new Uint32Array(W * H));
+        world.paint(cx, cy, r, TOOL.ANIMAL, 1, 1);
+        const { cells } = await world.readState();
+        const inside = disc(cx, cy, r);
+        cells.forEach((w, i) => {
+          if ((cellSpecies(w) === 1) !== inside.has(i)) throw new Error(`${W}×${H}: celda ${i % W},${Math.floor(i / W)} mal pintada (pincel en ${cx},${cy}, radio ${r}).`);
+        });
+        world.paint(cx, cy, r, TOOL.ERASE);
+        const after = await world.readState();
+        if (after.cells.some((w) => w !== 0)) throw new Error('Borrar ha dejado animales.');
       }
-      return inside;
-    };
-    for (const [cx, cy, r] of [[20, 30, 6], [1, 1, 3]]) {
-      world.writeState(new Uint32Array(size * size));
-      world.paint(cx, cy, r, TOOL.ANIMAL, 1, 1);
-      const { cells } = await world.readState();
-      const inside = disc(cx, cy, r);
-      cells.forEach((w, i) => {
-        if ((cellSpecies(w) === 1) !== inside.has(i)) throw new Error(`Celda ${i % size},${Math.floor(i / size)} mal pintada (pincel en ${cx},${cy}, radio ${r}).`);
-      });
-      world.paint(cx, cy, r, TOOL.ERASE);
-      const after = await world.readState();
-      if (after.cells.some((w) => w !== 0)) throw new Error('Borrar ha dejado animales.');
     }
   });
 

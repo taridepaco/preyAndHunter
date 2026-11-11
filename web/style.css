@@ -1,13 +1,13 @@
-/*
- * Prey on top of the common system (system.css, copied unchanged from taridepaco.github.io).
- * Here lives only what the system does not cover: the app layout, the world's screen, the
- * simulator's own controls (selects, sliders, tabs) and the observatory. Components use tokens
- * only; the literal colours below are Prey's own tokens, each with a day and a night value.
- */
+/* Prey: lo que el sistema común (system.css) no cubre.
+   La página de simulador es la de GameOfLifer: la barra superior, el panel plegable, los
+   desplegables, el deslizador, las teclas, la pantalla con su línea de estado y la barra de mandos
+   del móvil son los mismos en los dos (y en Boider). Lo propio de Prey va al final: el suelo del
+   mundo, las especies, el pincel y el observatorio.
+   Todo con los tokens del sistema: sin radios, y los únicos colores literales son los del suelo
+   del mundo, que son tokens propios de Prey con valor de día y de noche. */
+
+/* el suelo del mundo (main.js se lo pasa a la GPU) y la línea de la teoría en las gráficas */
 :root {
-  --side: 440px;
-  --gap: 22px;
-  /* the world's ground (read by main.js for the GPU) and the theory line of the charts */
   --sim-soil: #4e3726;     /* tierra */
   --sim-grass-lo: #465c3b;
   --sim-grass-hi: #416a42; /* hierba, apagada para que resalten los animales */
@@ -16,7 +16,7 @@
   --c-theory: #2f7e96;
 }
 
-/* night values: both blocks must carry the same values (as in system.css) */
+/* valores de noche: los dos bloques deben llevar los mismos valores (como en system.css) */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --sim-soil: #17120e;
@@ -36,83 +36,192 @@
   --c-theory: #62bcd6;
 }
 
-/* ---- page: a full-height app on wide screens, a scrolling page on narrow ones ------------ */
-html, body { height: 100%; }
+html, body { height: 100%; overflow: hidden; }
+
 body {
   display: flex;
   flex-direction: column;
+  height: 100dvh;
   overflow: hidden;
-  padding: 0 max(16px, env(safe-area-inset-right, 0px)) 16px max(16px, env(safe-area-inset-left, 0px));
 }
 
+/* barra superior */
 .topbar {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 18px;
-  padding: max(10px, env(safe-area-inset-top, 0px)) 0 10px;
+  gap: 8px 14px;
+  padding: 10px max(16px, env(safe-area-inset-right, 0px)) 10px max(16px, env(safe-area-inset-left, 0px));
+  padding-top: max(10px, env(safe-area-inset-top, 0px));
   border-bottom: var(--bw) solid var(--line);
 }
-.topbar .back { text-decoration: none; font-weight: 700; }
-.topbar .back:hover { text-decoration: underline; text-underline-offset: 4px; }
-.topbar .title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-right: auto; min-width: 0; }
-.topbar h1 { font-size: 1.35rem; }
-.topbar nav a { text-underline-offset: 4px; }
+.topbar .back { text-underline-offset: 4px; }
+.topbar h1 { font-size: 1.25rem; }
+.topbar .tag { margin-right: auto; }
+/* con el dedo (un móvil en horizontal pasa de 720px) los enlaces miden 36px de alto, como los
+   botones de al lado; la fila no cambia (como en Boider) */
+@media (pointer: coarse) {
+  .topbar .back, .help a { display: inline-flex; align-items: center; min-height: 36px; }
+}
 
-.toolbar {
+.app {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  flex-wrap: wrap;
+}
+
+/* panel de controles */
+#panel {
+  flex: none;
+  background: var(--surface);
+  border-right: var(--bw) solid var(--line);
+  overflow-y: auto;
+  scrollbar-color: var(--line) var(--surface);
+}
+#panel[open] { width: 320px; }
+
+#panel > summary {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
   align-items: center;
-  gap: 12px 26px;
-  padding: 14px 0 18px;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  padding: 8px 16px;
+  background: var(--surface);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  list-style: none;
 }
-.toolbar .group { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 14px; }
-.toolbar label { flex-direction: row; align-items: center; gap: 8px; }
+#panel > summary::-webkit-details-marker { display: none; }
+#panel > summary::after {
+  content: "[+]";
+  font-family: var(--f-util);
+  font-weight: 700;
+  font-size: var(--util);
+}
+#panel[open] > summary { border-bottom: var(--bw) solid var(--line); }
+#panel[open] > summary::after { content: "[–]"; }
+#panel > summary:focus-visible { outline-offset: -3px; }
 
-/* the world's settings, inside its card */
-.fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 14px; align-items: end; }
-.fields select, .fields input { width: 100%; }
-.fields .btn { justify-content: center; }
+#controls { padding: 0 16px 24px; }
 
-/* play / pause: the icon is drawn, so it looks the same with every font */
-.btn { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; }
-.btn.play { min-width: 7.6em; justify-content: center; }
-.ico { width: .75em; height: .85em; background: currentColor; clip-path: polygon(0 0, 100% 50%, 0 100%); }
-.btn.play.running .ico {
-  clip-path: none;
-  background: linear-gradient(to right, currentColor 0 34%, transparent 34% 66%, currentColor 66% 100%);
+.pitch {
+  padding: 14px 0 0;
+  font-size: .92rem;
+  color: var(--muted);
 }
 
-/* ---- form controls the system does not have ------------------------------------------- */
-select {
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0 0 18px;
+  border: 0;
+  border-bottom: var(--bw) dashed var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+fieldset:last-child { border-bottom: 0; padding-bottom: 0; }
+legend {
+  padding: 16px 0 0;
+  margin-bottom: 10px;
+  font-family: var(--f-display);
+  font-weight: 700;
+  font-size: .8rem;
+  letter-spacing: -.02em;
+}
+
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field > label, .field > .label { display: block; font-size: .92rem; }
+
+.hint {
+  margin: 0;
+  font-size: .86rem;
+  color: var(--muted);
+}
+
+/* botones a dos columnas; el margen derecho deja ver la sombra */
+.buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  padding: 0 5px 5px 0;
+}
+.buttons .btn { width: 100%; min-height: 40px; text-align: center; }
+.buttons .wide { grid-column: 1 / -1; }
+
+/* play / pausa con icono de píxeles dibujado en CSS (los símbolos ▶ ⏸ salen como emoji en móvil) */
+.play { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.play::before {
+  content: "";
+  flex: none;
+  width: 10px;
+  height: 14px;
+  background: currentColor;
+  /* triángulo escalonado de 5 columnas × 9 filas */
+  clip-path: polygon(0 0, 20% 0, 20% 11.11%, 40% 11.11%, 40% 22.22%, 60% 22.22%, 60% 33.33%, 80% 33.33%, 80% 44.44%, 100% 44.44%, 100% 55.56%, 80% 55.56%, 80% 66.67%, 60% 66.67%, 60% 77.78%, 40% 77.78%, 40% 88.89%, 20% 88.89%, 20% 100%, 0 100%);
+}
+.play[data-running="true"]::before {
+  width: 10px;
+  clip-path: polygon(0 0, 30% 0, 30% 100%, 0 100%, 0 0, 70% 0, 100% 0, 100% 100%, 70% 100%, 70% 0);
+}
+
+/* desplegable: caja cuadrada con flecha escalonada */
+.select { position: relative; display: block; }
+.select select {
   -webkit-appearance: none;
   appearance: none;
-  font: inherit;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 7px 36px 7px 10px;
+  font-family: var(--f-util);
+  font-weight: 500;
+  font-size: .78rem;
   color: var(--ink);
-  background-color: var(--bg);
+  background: var(--bg);
   border: var(--bw) solid var(--line);
   border-radius: 0;
-  padding: 4px 32px 4px 10px;
-  min-height: 36px;
   cursor: pointer;
-  /* a small pixel chevron in --ink */
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
-    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
-  background-position: calc(100% - 17px) 55%, calc(100% - 11px) 55%;
-  background-size: 6px 6px;
-  background-repeat: no-repeat;
 }
-select option { background: var(--surface); color: var(--ink); }
+.select::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  width: 12px;
+  height: 6px;
+  margin-top: -3px;
+  background: var(--ink);
+  pointer-events: none;
+  clip-path: polygon(0 0, 100% 0, 100% 33.33%, 83.33% 33.33%, 83.33% 66.67%, 66.67% 66.67%, 66.67% 100%, 33.33% 100%, 33.33% 66.67%, 16.67% 66.67%, 16.67% 33.33%, 0 33.33%);
+}
+.select select:hover { background: var(--surface); }
+.select option { color: var(--ink); background: var(--surface); }
 
-#seed { padding: 4px 8px; min-height: 36px; font-variant-numeric: tabular-nums; }
-
-output { font-family: var(--f-util); font-size: .75rem; color: var(--ink); font-variant-numeric: tabular-nums; }
-
-/* slider: thick track filled in --second up to the value (--p, set by panel.js), square thumb */
-input[type="range"] {
+/* deslizador: etiqueta y valor arriba, pista cuadrada debajo (igual que en GameOfLifer y Boider) */
+.slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  gap: 0 8px;
+}
+.slider label { display: block; font-size: .92rem; }
+.slider output {
+  font-family: var(--f-util);
+  font-weight: 700;
+  font-size: var(--util);
+  font-variant-numeric: tabular-nums;
+}
+.slider input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
+  grid-column: 1 / -1;
   width: 100%;
   height: 28px;
   margin: 0;
@@ -120,109 +229,121 @@ input[type="range"] {
   border: 0;
   background: transparent;
   cursor: pointer;
-  --p: .5;
-  --fill: calc(8px + (100% - 16px) * var(--p));
+  --thumb: 14px;
+  /* --p (0..1) lo pone panel.js; el relleno llega hasta el centro del mando */
+  --fill: calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--p, 0));
 }
-input[type="range"]::-webkit-slider-runnable-track {
+.slider input[type="range"]::-webkit-slider-runnable-track {
   box-sizing: border-box;
   height: 14px;
   border: var(--bw) solid var(--line);
-  background: linear-gradient(to right, var(--second) 0 var(--fill), var(--bg) var(--fill) 100%);
+  background: linear-gradient(to right, var(--second) var(--fill), var(--bg) var(--fill));
 }
-input[type="range"]::-webkit-slider-thumb {
+.slider input[type="range"]::-moz-range-track {
+  box-sizing: border-box;
+  height: 14px;
+  border: var(--bw) solid var(--line);
+  background: linear-gradient(to right, var(--second) var(--fill), var(--bg) var(--fill));
+}
+.slider input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  appearance: none;
   box-sizing: border-box;
-  width: 16px;
-  height: 24px;
-  margin-top: -8px;
-  background: var(--surface);
-  border: var(--bw) solid var(--line);
+  width: var(--thumb);
+  height: 26px;
+  margin-top: -9px;
+  border: 0;
   border-radius: 0;
-  box-shadow: 2px 2px 0 var(--shade);
+  background: var(--ink);
 }
-input[type="range"]::-moz-range-track {
+.slider input[type="range"]::-moz-range-thumb {
   box-sizing: border-box;
-  height: 14px;
-  border: var(--bw) solid var(--line);
+  width: var(--thumb);
+  height: 26px;
+  border: 0;
+  border-radius: 0;
+  background: var(--ink);
+}
+.slider input[type="range"]:hover::-webkit-slider-thumb,
+.slider input[type="range"]:active::-webkit-slider-thumb { background: var(--accent); }
+.slider input[type="range"]:hover::-moz-range-thumb,
+.slider input[type="range"]:active::-moz-range-thumb { background: var(--accent); }
+@media (pointer: coarse) {
+  .slider input[type="range"] { height: 36px; }
+}
+
+/* teclas */
+.keys {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px 12px;
+  align-items: baseline;
+  margin: 0;
+  font-size: .86rem;
+}
+.keys dt { white-space: nowrap; }
+.keys dd { margin: 0; color: var(--muted); }
+kbd {
+  display: inline-block;
+  font-family: var(--f-util);
+  font-weight: 500;
+  font-size: .64rem;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  padding: 1px 5px;
+  color: var(--ink);
   background: var(--bg);
-}
-input[type="range"]::-moz-range-progress { height: 8px; background: var(--second); }
-input[type="range"]::-moz-range-thumb {
-  box-sizing: border-box;
-  width: 16px;
-  height: 24px;
-  background: var(--surface);
-  border: var(--bw) solid var(--line);
-  border-radius: 0;
+  border: 2px solid var(--line);
   box-shadow: 2px 2px 0 var(--shade);
 }
 
-/* a labelled slider: name, track, value */
-.control {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px) 3.8em;
-  align-items: center;
-  gap: 10px;
-  font-size: .92rem;
-  color: var(--muted);
-}
-.control output { text-align: right; }
-
-/* tabs: chips joined like .lang-switch, the chosen one filled */
-.tabs { display: flex; flex-wrap: wrap; }
-.tabs .chip + .chip { border-left: 0; }
-.tabs .chip[aria-selected="true"] { background: var(--ink); color: var(--bg); }
-
-.swatch { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid var(--line); }
-.swatch.grass { background: var(--sim-grass-hi); }
-
-/* ---- the world's screen --------------------------------------------------------------- */
-.app {
-  flex: 1;
-  min-height: 0;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--side);
-  gap: var(--gap);
-}
-.stage { min-width: 0; min-height: 0; padding: 0 5px 5px 0; } /* room for the hard shadow */
+/* el mundo va enmarcado como una pantalla, con una línea de estado debajo */
 .screen {
   position: relative;
-  width: 100%;
-  height: 100%;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 16px 21px 21px 16px;
+  margin-right: max(21px, env(safe-area-inset-right, 0px));
   border: var(--bw) solid var(--line);
   box-shadow: var(--shadow);
-  background: var(--sim-outside);
+  background: var(--surface);
   overflow: hidden;
 }
-#world {
+.screen canvas {
   display: block;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
   touch-action: none;
   cursor: crosshair;
   image-rendering: pixelated;
 }
-#world.panning { cursor: grabbing; }
+.screen canvas.panning { cursor: grabbing; }
 
-/* labels over the screen, like a console's HUD: the live figures on top, the help below */
-.hud, .hint {
-  position: absolute;
-  left: 10px;
-  max-width: calc(100% - 20px);
-  padding: 4px 8px;
+.status {
+  flex: none;
+  padding: 5px 10px;
+  border-top: var(--bw) solid var(--line);
   background: var(--surface);
-  color: var(--ink);
-  border: 2px solid var(--line);
-  pointer-events: none;
+  font-family: var(--f-util);
+  font-weight: 500;
+  font-size: var(--util);
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
-.hud { top: 10px; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.hud:empty { display: none; }
-.hint { bottom: 10px; }
 
+/* hasta que el mundo existe (tras las fuentes), el lienzo tiene el color de alrededor del mundo */
+.screen canvas { background: var(--sim-outside); }
+
+/* sin WebGPU, o si se pierde la GPU: una caja del sistema sobre la pantalla */
 .error {
   position: absolute;
   inset: 0;
+  z-index: 2;
   display: grid;
   place-items: center;
   padding: 16px;
@@ -231,20 +352,22 @@ input[type="range"]::-moz-range-thumb {
 .error .card { max-width: 52ch; }
 .error p { white-space: pre-line; }
 
-/* ---- side panel ----------------------------------------------------------------------- */
-.side {
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  padding: 0 10px 10px 0;
-  scrollbar-width: thin;
-  scrollbar-color: var(--line) transparent;
-}
-.side .card { gap: 12px; flex: none; }
-.desc { color: var(--muted); }
+/* ---- lo propio de Prey ------------------------------------------------------------------ */
 
+/* la semilla, con la misma letra y altura que los desplegables */
+.field input {
+  min-height: 40px;
+  padding: 7px 10px;
+  font-family: var(--f-util);
+  font-weight: 500;
+  font-size: .78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.swatch { display: inline-block; width: 14px; height: 14px; flex: none; border: 2px solid var(--line); }
+.swatch.grass { background: var(--sim-grass-hi); }
+
+/* especies: una caja por especie con su recuento y sus deslizadores */
 .species { display: grid; gap: 12px; }
 .sp {
   display: flex;
@@ -258,14 +381,15 @@ input[type="range"]::-moz-range-thumb {
 .sp-head h3 { font-size: .95rem; }
 .sp-head .count { margin-left: auto; font-family: var(--f-util); font-weight: 700; font-size: .8rem; font-variant-numeric: tabular-nums; }
 
+/* herramientas del pincel */
 .tools { display: flex; flex-wrap: wrap; gap: 8px; }
 .tools .chip { display: inline-flex; align-items: center; gap: 8px; }
 
-/* ---- observatory ---------------------------------------------------------------------- */
+/* observatorio */
 .chart { position: relative; width: 100%; border: var(--bw) solid var(--line); background: var(--bg); }
 .chart canvas { display: block; width: 100%; height: 100%; }
 #series-wrap { height: 186px; }
-#phase-wrap { height: 300px; }
+#phase-wrap { aspect-ratio: 1; }
 
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--muted); }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
@@ -274,6 +398,20 @@ input[type="range"]::-moz-range-thumb {
 .legend .k-theory { border-top-color: var(--c-theory); border-top-style: dotted; }
 .legend .k-eq { border-top-color: var(--muted); border-top-style: dashed; border-top-width: 2px; }
 .legend .k-eq.theory { border-top-color: var(--c-theory); }
+
+/* pestañas de los modelos: como el selector segmentado de GameOfLifer y Boider, en columnas
+   iguales que caben en el panel; la elegida rellena */
+.tabs { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.tabs .chip {
+  min-width: 0;
+  padding: 6px 2px;
+  font-size: .62rem;
+  letter-spacing: .02em;
+  text-align: center;
+  background: var(--bg);
+}
+.tabs .chip + .chip { border-left: 0; }
+.tabs .chip[aria-selected="true"] { background: var(--ink); color: var(--bg); }
 
 .model {
   margin-top: calc(-1 * var(--bw));
@@ -290,13 +428,90 @@ input[type="range"]::-moz-range-thumb {
 .model .threshold { margin: 0 0 10px; }
 .model .legend-vars { margin-top: 10px; font-size: .82rem; color: var(--muted); }
 
-/* ---- narrow screens: one column, the page scrolls ------------------------------------ */
-@media (max-width: 900px) {
-  html, body { height: auto; }
-  body { overflow: visible; }
-  .app { grid-template-columns: minmax(0, 1fr); }
-  .stage { height: min(64vh, 100vw); }
-  .side { overflow: visible; padding: 0 5px 5px 0; }
-  .hud { left: 6px; top: 6px; max-width: calc(100% - 12px); }
-  .hint { display: none; }
+/* solo en el móvil: la barra de mandos y la sección de aspecto del panel */
+.deck, .m-only { display: none; }
+
+/* Móvil: la pantalla manda.
+   - Cabecera en una fila: solo la flecha de vuelta (el texto sigue para lectores de pantalla),
+     el título y el idioma. La etiqueta se oculta y el botón de tema pasa al panel (Aspecto).
+   - Bajo la pantalla, una barra con los tres mandos más usados.
+   - El panel empieza plegado (index.html) y al abrirse sube como una hoja por encima de la parte
+     baja del lienzo, sin encogerlo: el mundo no se recoloca. */
+@media (max-width: 720px) {
+  .topbar { flex-wrap: nowrap; gap: 10px; padding-top: max(8px, env(safe-area-inset-top, 0px)); padding-bottom: 8px; }
+  .topbar .back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 36px;
+    min-height: 36px;
+    margin-left: -10px;
+    text-decoration: none;
+  }
+  .topbar .back-arrow { font-size: 1.1rem; }
+  .topbar .back-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .topbar h1 {
+    min-width: 0;
+    margin-right: auto;
+    font-size: 1.05rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .topbar .tag, .topbar .theme-btn { display: none; }
+
+  .app { flex-direction: column; }
+  .screen { order: 1; margin: 10px 17px 12px 12px; }
+  .status { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .deck {
+    order: 2;
+    flex: none;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 max(17px, env(safe-area-inset-right, 0px)) 17px max(12px, env(safe-area-inset-left, 0px));
+  }
+  .deck .btn { min-width: 0; min-height: 44px; padding: 8px 4px; text-align: center; }
+  @media (max-width: 360px) { .deck .btn { font-size: .74em; letter-spacing: -.02em; } }
+
+  #panel,
+  #panel[open] {
+    order: 3;
+    position: relative;
+    flex: none;
+    width: 100%;
+    overflow: visible;
+    border-right: 0;
+    border-top: var(--bw) solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  #panel[open] > summary { border-bottom: 0; }
+  #panel[open] > #controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    z-index: 5;
+    max-height: 58dvh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-top: var(--bw) solid var(--line);
+    border-bottom: var(--bw) solid var(--line);
+    box-shadow: 0 -5px 0 var(--shade);
+    scrollbar-color: var(--line) var(--surface);
+  }
+  #controls { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+
+  /* lo que ya está en la barra de mandos no se repite en el panel */
+  #panel .desk { display: none; }
+  #panel .m-wide { grid-column: 1 / -1; }
+  .m-only { display: flex; }
 }
